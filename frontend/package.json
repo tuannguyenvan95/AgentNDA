@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:sync": "node --experimental-strip-types scripts/test-frontend-sync.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
