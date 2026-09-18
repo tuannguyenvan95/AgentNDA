@@ -5,6 +5,10 @@
 [![Track](https://img.shields.io/badge/Track-Subjective_Consensus_&_AI_Governance-10b981?style=for-the-badge)](https://portal.genlayer.foundation)
 [![License](https://img.shields.io/badge/License-MIT-f43f5e?style=for-the-badge)](LICENSE)
 
+- 🌐 **Live Web3 dApp:** [https://agentnda.vercel.app](https://agentnda.vercel.app)
+- 🐙 **GitHub Repository:** [https://github.com/tuannguyenvan95/AgentNDA](https://github.com/tuannguyenvan95/AgentNDA)
+- ⚙️ **GenLayer Network:** Studionet (Chain ID: `61999` / `0xF22F`, RPC: `https://studio.genlayer.com/api`)
+
 > **One-Liner (Form Ready — 109 chars):**  
 > Autonomous Web3 leak adjudication and whistleblower escrow powered by GenLayer decentralized AI consensus.
 
