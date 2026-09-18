@@ -54,7 +54,7 @@ def test_native_transfer_calls(contract_source):
     assert "emit_transfer(value=u256(bounty_val))" in contract_source
 
 
-# --- End-to-End Simulation Tests (GenVM state machine behavior) ---
+# --- End-to-End Simulation Tests (GenVM Role-based state machine behavior) ---
 
 class MockAgentNDASimulator:
     """Behavioral harness simulating GenVM state transitions for unit testing without full node."""
@@ -140,12 +140,8 @@ class MockAgentNDASimulator:
             self.total_breaches_settled += 1
             # Payout bounty + refund anti-spam bond to whistleblower
             self.balances[c["whistleblower"]] += (bounty + bond)
-        elif verdict == "FETCH_FAILED":
-            # Scraper or network error: refund bond to whistleblower without penalty
-            c["status"] = 0
-            self.balances[c["whistleblower"]] += bond
         else:
-            # False report: slash whistleblower bond to compensate issuer
+            # False report or dead/404 URL: slash whistleblower bond to compensate issuer
             c["status"] = 0
             c["verdict"] = "NO_BREACH"
             self.balances[c["issuer"]] += bond
@@ -180,30 +176,62 @@ class MockAgentNDASimulator:
         self.balances[sender] += bounty
 
 
-def test_full_confirmed_breach_lifecycle(mock_leak_evidence_confirmed):
-    """Test full cycle: register NDA -> whistleblower stakes bond & reports leak -> AI jury confirms -> bounty + bond paid."""
+# --- Role-based End-to-End Test Suite ---
+
+def test_role_issuer_registration_and_safe_expiration():
+    """Role: Issuer locks 300 GEN for 1000 seconds, premature reclaim fails, then successfully reclaims after expiry."""
     sim = MockAgentNDASimulator()
+    assert sim.balances["issuer"] == 1000
+
+    # 1. Issuer registers NDA escrow
     case_id = sim.register_nda_escrow(
         issuer="issuer",
         value=300,
-        nda_scope="Confidential multi-sig algorithm. Canary: CANARY_PHRASE_PROJECT_OMEGA_SEC_KEY_998."
+        nda_scope="Algorithmic secret trading strategies.",
+        duration_seconds=1000,
+        now_timestamp=1770000000
     )
     assert case_id == "nda-1"
+    assert sim.balances["issuer"] == 700
     assert sim.total_bounty_locked == 300
-    assert sim.cases[case_id]["status"] == 0
+    assert sim.cases[case_id]["status"] == 0  # ACTIVE_SECURE
 
-    # Whistleblower stakes anti-spam bond (15 wei = 5% of 300) and reports leak
+    # 2. Issuer attempts premature reclaim at t=500s -> BLOCKED
+    with pytest.raises(ValueError, match="Protected NDA confidentiality duration has not yet expired"):
+        sim.close_and_reclaim(sender="issuer", case_id=case_id, current_timestamp=1770000500)
+
+    # 3. Third-party attempts unauthorized reclaim -> BLOCKED
+    with pytest.raises(PermissionError):
+        sim.close_and_reclaim(sender="whistleblower", case_id=case_id, current_timestamp=1770002000)
+
+    # 4. Issuer reclaims after duration expires at t=2000s -> SUCCESS
+    sim.close_and_reclaim(sender="issuer", case_id=case_id, current_timestamp=1770002000)
+    assert sim.cases[case_id]["status"] == 3  # SECURE_EXPIRED
+    assert sim.total_bounty_locked == 0
+    assert sim.balances["issuer"] == 1000  # 100% funds returned
+
+
+def test_role_whistleblower_confirmed_breach_flow(mock_leak_evidence_confirmed):
+    """Role: Whistleblower spots leaked trade secret, stakes bond, AI confirms -> receives bounty + bond refund."""
+    sim = MockAgentNDASimulator()
+    case_id = sim.register_nda_escrow(
+        issuer="issuer",
+        value=400,
+        nda_scope="Confidential multi-sig algorithm. Canary: CANARY_PHRASE_PROJECT_OMEGA_SEC_KEY_998."
+    )
+    assert sim.balances["whistleblower"] == 100
+
+    # 1. Whistleblower stakes 5% bond (20 wei) and files leak URL
     sim.report_leak(
         whistleblower="whistleblower",
         case_id=case_id,
         evidence_url="https://pastebin.com/raw/secret_leak_123",
-        bond_value=15
+        bond_value=20
     )
-    assert sim.cases[case_id]["status"] == 1
-    assert sim.cases[case_id]["whistleblower"] == "whistleblower"
-    assert sim.balances["whistleblower"] == 85  # 100 - 15 bond staked
+    assert sim.cases[case_id]["status"] == 1  # IN_AUDIT
+    assert sim.balances["whistleblower"] == 80
 
-    # AI Jury adjudicates and confirms breach
+    # 2. AI Jury confirms breach
     parsed = json.loads(mock_leak_evidence_confirmed["llm_response"])
     sim.adjudicate_leak(
         case_id=case_id,
@@ -213,34 +241,34 @@ def test_full_confirmed_breach_lifecycle(mock_leak_evidence_confirmed):
         severity=parsed["leak_severity"]
     )
 
+    # 3. Whistleblower receives full 400 bounty + 20 bond refunded
     assert sim.cases[case_id]["status"] == 2  # BREACH_CONFIRMED
     assert sim.cases[case_id]["verdict"] == "BREACH_CONFIRMED"
-    assert sim.total_bounty_locked == 0
+    assert sim.balances["whistleblower"] == 80 + 420  # 500 total!
     assert sim.total_breaches_settled == 1
-    # Whistleblower received 300 bounty + 15 refunded bond -> 85 + 315 = 400 total!
-    assert sim.balances["whistleblower"] == 400
 
 
-def test_false_alarm_bond_slashing(mock_leak_evidence_no_breach):
-    """Test false report: AI jury rules NO_BREACH -> status resets, whistleblower's bond slashed to issuer."""
+def test_role_whistleblower_false_alarm_bond_slashed(mock_leak_evidence_no_breach):
+    """Role: Whistleblower reports false rumor -> AI rules NO_BREACH -> bond is slashed to Issuer."""
     sim = MockAgentNDASimulator()
     case_id = sim.register_nda_escrow(
         issuer="issuer",
         value=500,
         nda_scope="Internal financial roadmaps. Canary: ROADMAP_INTERNAL_OCTOBER_ALPHA."
     )
-    assert sim.balances["issuer"] == 500  # 1000 - 500 escrowed
+    assert sim.balances["issuer"] == 500
+    assert sim.balances["whistleblower"] == 100
 
-    # Whistleblower reports public rumor and stakes 25 bond (5% of 500)
+    # Whistleblower stakes 25 bond and reports unrelated rumor
     sim.report_leak(
         whistleblower="whistleblower",
         case_id=case_id,
         evidence_url="https://twitter.com/crypto_rumors/status/987654",
         bond_value=25
     )
-    assert sim.cases[case_id]["status"] == 1
     assert sim.balances["whistleblower"] == 75
 
+    # AI Jury evaluates and rejects disclosure
     parsed = json.loads(mock_leak_evidence_no_breach["llm_response"])
     sim.adjudicate_leak(
         case_id=case_id,
@@ -252,118 +280,90 @@ def test_false_alarm_bond_slashing(mock_leak_evidence_no_breach):
 
     assert sim.cases[case_id]["status"] == 0  # Resets to ACTIVE_SECURE
     assert sim.cases[case_id]["verdict"] == "NO_BREACH"
-    assert sim.total_bounty_locked == 500  # Escrow remains intact
     assert sim.balances["whistleblower"] == 75  # Lost 25 bond
-    assert sim.balances["issuer"] == 525  # Issuer received slashed 25 bond
+    assert sim.balances["issuer"] == 525  # Issuer compensated with 25 bond
 
 
-def test_fetch_failed_bond_refunded():
-    """Test scraper or network 404: AI returns FETCH_FAILED -> whistleblower bond is refunded without slashing."""
+def test_role_dead_404_link_slashed_prevent_spam_loop():
+    """Security check: Submitting 404/dead link is treated as NO_BREACH and slashed to prevent zero-cost DoS spam."""
     sim = MockAgentNDASimulator()
     case_id = sim.register_nda_escrow(
         issuer="issuer",
         value=200,
-        nda_scope="Patent drafts."
+        nda_scope="Patent architecture draft."
     )
 
     sim.report_leak(
         whistleblower="whistleblower",
         case_id=case_id,
-        evidence_url="https://broken-link-404.example.com",
+        evidence_url="https://fake-404-domain-nonexistent.com/leak",
         bond_value=10
     )
     assert sim.balances["whistleblower"] == 90
 
-    # Scraper fails -> FETCH_FAILED
+    # Web render fails -> treated as NO_BREACH (invalid evidence submitted)
     sim.adjudicate_leak(
         case_id=case_id,
-        verdict="FETCH_FAILED",
-        reason="Could not access or render leak evidence URL. Content missing, 404, or blocked.",
+        verdict="NO_BREACH",
+        reason="Could not access or render leak evidence URL. Evidence is missing, invalid, or 404.",
         confidence=100,
         severity=0
     )
 
-    assert sim.cases[case_id]["status"] == 0
-    # Whistleblower gets full bond back!
-    assert sim.balances["whistleblower"] == 100
+    assert sim.cases[case_id]["status"] == 0  # Resets to ACTIVE_SECURE
+    assert sim.balances["whistleblower"] == 90  # Bond slashed (cannot spam for free)
+    assert sim.balances["issuer"] == 810  # 800 + 10 slashed bond
 
 
-def test_issuer_close_and_reclaim_expiry():
-    """Test issuer reclaiming bounty after confidential period expires with zero leaks."""
+def test_role_stalled_audit_timeout_protection():
+    """Role: Stalled audit protection - If audit is stuck for > 24h, issuer recovers funds and whistleblower bond is refunded."""
     sim = MockAgentNDASimulator()
     case_id = sim.register_nda_escrow(
         issuer="issuer",
-        value=200,
-        nda_scope="Short-term audit embargo until mainnet launch.",
-        duration_seconds=1000,
-        now_timestamp=1770000000
-    )
-    assert sim.balances["issuer"] == 800
-
-    # Premature reclaim attempt before expiry fails
-    with pytest.raises(ValueError, match="Protected NDA confidentiality duration has not yet expired"):
-        sim.close_and_reclaim(sender="issuer", case_id=case_id, current_timestamp=1770000500)
-
-    # Non-issuer attempt to reclaim fails
-    with pytest.raises(PermissionError):
-        sim.close_and_reclaim(sender="whistleblower", case_id=case_id, current_timestamp=1770002000)
-
-    # Issuer reclaims after expiry
-    sim.close_and_reclaim(sender="issuer", case_id=case_id, current_timestamp=1770002000)
-    assert sim.cases[case_id]["status"] == 3  # SECURE_EXPIRED
-    assert sim.total_bounty_locked == 0
-    assert sim.balances["issuer"] == 1000  # Full refund back to issuer
-
-
-def test_timeout_protection_reclaim():
-    """Test reclaim when case is stuck in audit for > 24 hours."""
-    sim = MockAgentNDASimulator()
-    case_id = sim.register_nda_escrow(
-        issuer="issuer",
-        value=400,
-        nda_scope="Test scope",
+        value=300,
+        nda_scope="Secret spec",
         now_timestamp=1770000000
     )
 
     sim.report_leak(
         whistleblower="whistleblower",
         case_id=case_id,
-        evidence_url="https://example.com/stalled",
-        bond_value=20,
+        evidence_url="https://stalled-validator-test.com",
+        bond_value=15,
         now_timestamp=1770000000
     )
     assert sim.cases[case_id]["status"] == 1
 
-    # Within 24h (e.g. 10 hours), issuer cannot reclaim
+    # Within 24h (e.g. 5 hours later) -> Reclaim blocked
     with pytest.raises(ValueError, match="currently undergoing active jury audit"):
-        sim.close_and_reclaim(sender="issuer", case_id=case_id, current_timestamp=1770036000)
+        sim.close_and_reclaim(sender="issuer", case_id=case_id, current_timestamp=1770018000)
 
-    # After 25 hours (86400s + 3600s), issuer reclaims bounty, whistleblower's bond is returned!
+    # After 25 hours -> Reclaim allowed, bond returned safely to whistleblower
     sim.close_and_reclaim(sender="issuer", case_id=case_id, current_timestamp=1770090000)
     assert sim.cases[case_id]["status"] == 3
     assert sim.balances["issuer"] == 1000
-    assert sim.balances["whistleblower"] == 100  # Bond safely refunded!
+    assert sim.balances["whistleblower"] == 100  # Full bond refund
 
 
-def test_input_validation_rules():
-    """Verify input validation rules for bounty, scope, URL, and minimum bond."""
+def test_security_input_validations():
+    """Security check: Validates parameter bounds for bounty, scope, URL schema, and minimum bond stake."""
     sim = MockAgentNDASimulator()
 
-    # Zero bounty rejected
-    with pytest.raises(ValueError):
+    # Reject zero bounty
+    with pytest.raises(ValueError, match="greater than 0 GEN"):
         sim.register_nda_escrow("issuer", 0, "Valid scope")
 
-    # Empty scope rejected
-    with pytest.raises(ValueError):
+    # Reject empty scope
+    with pytest.raises(ValueError, match="cannot be empty"):
         sim.register_nda_escrow("issuer", 100, "   ")
 
     # Valid registration
-    cid = sim.register_nda_escrow("issuer", 100, "Protected Canary: CANARY_TEST_123")
+    cid = sim.register_nda_escrow("issuer", 100, "Valid confidential scope")
 
-    # Invalid URL scheme rejected
-    with pytest.raises(ValueError):
-        sim.report_leak("whistleblower", cid, "ftp://invalid-url.com", bond_value=10)
+    # Reject non-HTTP URL
+    with pytest.raises(ValueError, match="Valid public leak evidence URL"):
+        sim.report_leak("whistleblower", cid, "javascript:alert(1)", bond_value=5)
 
-    # Insufficient bond rejected (5% of 100 = 5 wei, providing 2)
+    # Reject insufficient anti-spam bond (< 5%)
     with pytest.raises(ValueError, match="at least 5 wei"):
-        sim.report_leak("whistleblower", cid, "https://valid-url.com", bond_value=2)
+        sim.report_leak("whistleblower", cid, "https://pastebin.com/valid", bond_value=3)
