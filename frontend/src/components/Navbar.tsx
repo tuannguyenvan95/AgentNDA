@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Copy,
   Check,
+  Scale,
 } from 'lucide-react';
 import { STUDIONET_CHAIN_ID, STUDIONET_RPC_URL, STUDIO_URL } from '../config/genlayer';
 import { formatAddress } from '../utils/helpers';
@@ -57,84 +58,99 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-[#0a0d14]/90 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          {/* Brand Logo & Tag */}
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-indigo-500/20">
-              <div className="w-full h-full bg-[#0a0d14] rounded-[10px] flex items-center justify-center">
-                <Shield className="w-6 h-6 text-indigo-400" />
-              </div>
+      <header className="w-full bg-[#FFFFFF] border-b border-[#E5E5E0]">
+        {/* Top Masthead Line / Digital Press Dateline */}
+        <div className="border-b border-[#E5E5E0] bg-[#F5F4F0] text-[11px] text-[#4B5563] font-mono tracking-wider py-1.5 px-4 sm:px-8 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-[#111827]">THE AGENTIC CHRONICLE</span>
+            <span className="text-[#9CA3AF]">|</span>
+            <span>VOL. VI • DISPATCH NO. 14</span>
+            <span className="text-[#9CA3AF]">|</span>
+            <span>GENLAYER STUDIONET (CHAIN ID: 61999)</span>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] uppercase font-semibold">
+            <span className="flex items-center gap-1.5 text-[#15803D]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#15803D]" />
+              CONSENSUS: OPTIMISTIC DEMOCRACY
+            </span>
+            <span className="text-[#9CA3AF]">|</span>
+            <span className="text-[#B91C1C]">UNBIASED WEB JURY</span>
+          </div>
+        </div>
+
+        {/* Main Press Masthead */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Logo & Headline Title */}
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-lg bg-[#111827] text-white flex items-center justify-center shadow-sm flex-shrink-0">
+              <Scale className="w-6 h-6 text-[#F9F8F6]" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-indigo-200">
-                  Agent<span className="text-indigo-400">NDA</span>
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                  STUDIONET
+              <div className="flex items-baseline gap-2.5">
+                <h1 className="font-serif font-black text-2xl sm:text-3xl tracking-tight text-[#111827]">
+                  Agent<span className="text-[#B91C1C]">NDA</span>
+                </h1>
+                <span className="press-tag press-tag-neutral text-[10px]">
+                  PRESS ESCROW GAZETTE
                 </span>
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Autonomous Web3 Leak Adjudication & Whistleblower Bounty Escrow
+              <p className="text-xs text-[#6B7280] font-sans">
+                Autonomous Web3 Leak Adjudication & Whistleblower Bounty Registry
               </p>
             </div>
           </div>
 
-          {/* Right Action Controls */}
-          <div className="flex items-center gap-3">
-            {/* Network Badge */}
-            <div className="hidden md:flex items-center">
-              {isStudionet ? (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>Studionet (61999)</span>
-                </div>
-              ) : (
-                <button
-                  onClick={onSwitchNetwork}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs font-medium text-amber-400 hover:bg-amber-500/20 transition"
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Switch to Studionet</span>
-                </button>
-              )}
-            </div>
+          {/* Controls & Wallet */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Network Indicator */}
+            {isStudionet ? (
+              <span className="press-tag press-tag-forest">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#15803D]" />
+                Studionet
+              </span>
+            ) : (
+              <button
+                onClick={onSwitchNetwork}
+                className="press-tag press-tag-amber hover:opacity-80 transition cursor-pointer"
+              >
+                <AlertCircle className="w-3 h-3 text-[#B45309]" />
+                Switch to Studionet
+              </button>
+            )}
 
-            {/* Faucet / Accounts Helper */}
+            {/* GEN Faucet Memo */}
             <button
               onClick={() => setShowFaucetModal(true)}
-              className="p-2 sm:px-3 sm:py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-slate-300 flex items-center gap-1.5 transition"
-              title="How to get GEN on Studionet"
+              className="px-3 py-1.5 rounded-md bg-[#F9F8F6] border border-[#E5E5E0] hover:bg-[#F3F4F6] text-xs font-medium text-[#374151] flex items-center gap-1.5 transition"
+              title="How to get GEN tokens on Studionet"
             >
-              <HelpCircle className="w-4 h-4 text-cyan-400" />
-              <span className="hidden sm:inline">Get GEN</span>
+              <HelpCircle className="w-3.5 h-3.5 text-[#111827]" />
+              <span>Get GEN</span>
             </button>
 
-            {/* Contract Config Settings */}
+            {/* Contract Configuration */}
             <button
               onClick={() => {
                 setCustomAddress(contractAddress);
                 setShowSettings(true);
               }}
-              className="p-2 sm:px-3 sm:py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-slate-300 flex items-center gap-1.5 transition"
-              title="Contract Settings"
+              className="px-3 py-1.5 rounded-md bg-[#F9F8F6] border border-[#E5E5E0] hover:bg-[#F3F4F6] text-xs font-mono text-[#374151] flex items-center gap-1.5 transition"
+              title="Contract Address"
             >
-              <Settings className="w-4 h-4 text-slate-400" />
-              <span className="hidden lg:inline font-mono">{formatAddress(contractAddress)}</span>
+              <Settings className="w-3.5 h-3.5 text-[#6B7280]" />
+              <span>{formatAddress(contractAddress)}</span>
             </button>
 
             {/* MetaMask Wallet Connection */}
             {account ? (
-              <div className="flex items-center gap-2 bg-[#121722] border border-white/10 rounded-xl p-1.5 pl-3">
+              <div className="flex items-center gap-2 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md p-1 pl-2.5">
                 <div className="flex flex-col text-right">
-                  <span className="text-xs font-bold text-white font-mono">{balance} GEN</span>
-                  <span className="text-[10px] text-slate-400 font-mono">{formatAddress(account)}</span>
+                  <span className="text-xs font-bold text-[#111827] font-mono">{balance} GEN</span>
+                  <span className="text-[10px] text-[#6B7280] font-mono">{formatAddress(account)}</span>
                 </div>
                 <button
                   onClick={onDisconnectWallet}
-                  className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-slate-300 transition"
-                  title="Disconnect"
+                  className="px-2 py-1 bg-[#FFFFFF] hover:bg-[#F3F4F6] border border-[#E5E5E0] rounded text-[11px] font-medium text-[#374151] transition"
                 >
                   Disconnect
                 </button>
@@ -143,9 +159,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onConnectWallet}
                 disabled={isConnecting}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-500/25 transition disabled:opacity-50"
+                className="px-4 py-2 rounded-md bg-[#111827] hover:bg-[#1F2937] text-white text-xs font-bold tracking-wide uppercase shadow-sm flex items-center gap-2 transition disabled:opacity-50"
               >
-                <Wallet className="w-4 h-4" />
+                <Wallet className="w-3.5 h-3.5" />
                 <span>{isConnecting ? 'Connecting...' : 'Connect MetaMask'}</span>
               </button>
             )}
@@ -155,142 +171,136 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Network Warning Banner if connected to wrong chain */}
       {account && !isStudionet && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 text-center text-xs text-amber-300 flex items-center justify-center gap-2">
+        <div className="bg-[#FFFBEB] border-b border-[#FCD34D] px-4 py-2 text-center text-xs text-[#B45309] font-medium flex items-center justify-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>MetaMask is currently on Chain ID {chainId || 'Unknown'}. AgentNDA requires GenLayer Studionet (61999).</span>
           <button
             onClick={onSwitchNetwork}
-            className="underline font-bold hover:text-white ml-2"
+            className="underline font-bold hover:text-[#78350F] ml-2"
           >
-            Switch Network Now
+            Switch to Studionet
           </button>
         </div>
       )}
 
-      {/* Contract Address Settings Modal */}
+      {/* Contract Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-[#121722] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Settings className="w-5 h-5 text-indigo-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E5E5E0] pb-3">
+              <h3 className="font-serif font-bold text-base text-[#111827] flex items-center gap-2">
+                <Settings className="w-4 h-4 text-[#111827]" />
                 Intelligent Contract Address
               </h3>
               <button
                 onClick={() => setShowSettings(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-[#6B7280] hover:text-[#111827] text-sm"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Target Intelligent Contract deployed on GenLayer Studionet. You can update this address if you deploy your own contract instance from GenLayer Studio.
+            <p className="text-xs text-[#4B5563] leading-relaxed">
+              Target Intelligent Contract deployed on GenLayer Studionet. Update this address to point your dApp instance to your own deployed contract.
             </p>
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-400">Contract Address (0x...)</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#374151]">Contract Address (0x...)</label>
               <input
                 type="text"
                 value={customAddress}
                 onChange={(e) => setCustomAddress(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-3 py-2 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] focus:outline-none focus:border-[#111827]"
               />
             </div>
 
             <div className="pt-2 flex items-center justify-end gap-2">
               <button
                 onClick={() => setShowSettings(false)}
-                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 transition"
+                className="px-3 py-1.5 rounded-md bg-[#F3F4F6] hover:bg-[#E5E5E0] text-xs font-medium text-[#374151] transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveContract}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition"
+                className="px-4 py-1.5 rounded-md bg-[#111827] hover:bg-[#1F2937] text-xs font-semibold text-white transition"
               >
-                Save Address
+                Save
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Faucet & Account Funding Helper Modal */}
+      {/* Faucet Guidance Modal */}
       {showFaucetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-[#121722] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E5E5E0] pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-                  <HelpCircle className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-bold text-white">How to Get GEN on Studionet</h3>
+                <Shield className="w-5 h-5 text-[#B91C1C]" />
+                <h3 className="font-serif font-bold text-lg text-[#111827]">Studionet GEN Funding Dispatch</h3>
               </div>
               <button
                 onClick={() => setShowFaucetModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-[#6B7280] hover:text-[#111827] text-sm"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-              <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200">
-                <strong>Important Rule (D1):</strong> AgentNDA is deployed on <strong>GenLayer Studionet</strong>. The public testnet faucet (testnet-faucet) does <em>NOT</em> fund Studionet accounts.
+            <div className="space-y-3 text-xs text-[#374151] leading-relaxed">
+              <div className="p-3 rounded-md bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B]">
+                <strong>Rule D1 Reminder:</strong> AgentNDA operates on <strong>GenLayer Studionet</strong>. The public testnet faucet does not fund Studionet accounts.
               </div>
 
-              <div className="space-y-2">
-                <p className="font-semibold text-white">Steps to fund your MetaMask wallet:</p>
-                <ol className="list-decimal list-inside space-y-1.5 pl-1 text-slate-300">
+              <div className="space-y-1.5">
+                <p className="font-bold text-[#111827]">How to fund your MetaMask address:</p>
+                <ol className="list-decimal list-inside space-y-1 pl-1 text-[#4B5563]">
                   <li>
                     Open{' '}
                     <a
                       href={STUDIO_URL}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-cyan-400 underline hover:text-cyan-300 inline-flex items-center gap-1"
+                      className="text-[#B91C1C] underline font-medium inline-flex items-center gap-1"
                     >
                       GenLayer Studio <ExternalLink className="w-3 h-3" />
                     </a>
                   </li>
-                  <li>Click on the <strong>Accounts</strong> panel in the left sidebar.</li>
-                  <li>Studio provides pre-funded accounts with plenty of GEN.</li>
-                  <li>
-                    Transfer <strong>10 to 50 GEN</strong> from the Studio account directly to your MetaMask address:
-                  </li>
+                  <li>Click on the <strong>Accounts</strong> tab in the sidebar.</li>
+                  <li>Choose any pre-funded Studio account with high GEN balance.</li>
+                  <li>Transfer <strong>10 to 50 GEN</strong> to your MetaMask address:</li>
                 </ol>
               </div>
 
               {account && (
-                <div className="p-3 bg-black/40 border border-white/10 rounded-xl flex items-center justify-between gap-2">
-                  <div className="truncate font-mono text-[11px] text-slate-300">
-                    Your Address: <span className="text-white font-bold">{account}</span>
-                  </div>
+                <div className="p-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md flex items-center justify-between gap-2">
+                  <span className="font-mono text-[11px] text-[#111827] truncate">
+                    {account}
+                  </span>
                   <button
                     onClick={() => handleCopy(account)}
-                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition flex items-center gap-1"
+                    className="p-1 rounded bg-[#FFFFFF] border border-[#E5E5E0] text-[#374151] hover:bg-[#F3F4F6] text-[10px] flex items-center gap-1"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span className="text-[10px]">{copied ? 'Copied' : 'Copy'}</span>
+                    {copied ? <Check className="w-3 h-3 text-[#15803D]" /> : <Copy className="w-3 h-3" />}
+                    <span>{copied ? 'Copied' : 'Copy'}</span>
                   </button>
                 </div>
               )}
 
-              <div className="pt-2 text-[11px] text-slate-400">
-                RPC Endpoint: <code className="text-cyan-300 font-mono">{STUDIONET_RPC_URL}</code>
-                <br />
-                Chain ID: <code className="text-cyan-300 font-mono">{STUDIONET_CHAIN_ID}</code> (hex: 0xF22F)
+              <div className="text-[11px] text-[#6B7280] pt-1">
+                RPC: <code className="font-mono text-[#111827]">{STUDIONET_RPC_URL}</code> • Chain ID: <code className="font-mono text-[#111827]">61999</code>
               </div>
             </div>
 
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setShowFaucetModal(false)}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition"
+                className="px-4 py-2 rounded-md bg-[#111827] hover:bg-[#1F2937] text-xs font-bold text-white transition"
               >
-                Understood
+                Close Dispatch
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Sparkles, Shield, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { Lock, Sparkles, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { parseGen } from '../utils/helpers';
 import { registerNdaEscrowOnChain } from '../config/genlayer';
 
@@ -74,15 +74,15 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
     }
 
     if (!ndaScope.trim()) {
-      setErrorMsg('Confidential NDA scope cannot be empty.');
+      setErrorMsg('Confidential NDA scope definition cannot be empty.');
       return;
     }
 
     setErrorMsg(null);
     setIsSubmitting(true);
     onTxStart(
-      'Locking Bounty & Registering NDA',
-      `Locking ${bountyAmount} GEN into on-chain escrow and registering confidential canary markers.`
+      'Registering Escrow Docket',
+      `Locking ${bountyAmount} GEN into on-chain escrow bond and indexing canary parameters.`
     );
 
     try {
@@ -99,33 +99,35 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden border border-white/10 shadow-2xl">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-6">
+      <div className="bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl p-6 sm:p-8 shadow-xs">
+        {/* Editorial Section Header */}
+        <div className="border-b border-[#E5E5E0] pb-5 flex items-start justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-semibold text-indigo-400 mb-3">
-              <Shield className="w-3.5 h-3.5" />
-              <span>Issuer Escrow Console</span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="press-tag press-tag-neutral text-[10px]">
+                ISSUER ENTRY DISPATCH
+              </span>
+              <span className="text-xs font-mono text-[#6B7280]">ESCROW REGISTRY</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Create On-Chain NDA & Escrow Bond
+            <h2 className="font-serif font-bold text-2xl sm:text-3xl text-[#111827] tracking-tight">
+              Register Confidential Scope & Escrow Bond
             </h2>
-            <p className="mt-1 text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Lock native GEN into an autonomous smart contract. Define the protected trade secrets
-              and canary identifiers. If a leak is discovered and proven on-chain, the whistleblower
-              autonomously receives the bounty.
+            <p className="mt-1.5 text-xs sm:text-sm text-[#4B5563] leading-relaxed">
+              Deposit native GEN into the autonomous GenLayer court. Specify confidential clauses
+              and canary tokens. Whistleblowers who prove unauthorized disclosure on the public web
+              will be awarded this bounty upon decentralized AI consensus.
             </p>
           </div>
-          <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 items-center justify-center text-indigo-400 flex-shrink-0">
-            <Lock className="w-6 h-6" />
+          <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[#F9F8F6] border border-[#E5E5E0] items-center justify-center text-[#111827]">
+            <Lock className="w-5 h-5" />
           </div>
         </div>
 
         {/* Quick Presets */}
-        <div className="pt-6 space-y-3">
-          <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Load Quick Demo Template:</span>
+        <div className="pt-5 space-y-2.5">
+          <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[#B91C1C]" />
+            <span>Official Demonstration Templates:</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {PRESET_TEMPLATES.map((preset, idx) => (
@@ -133,26 +135,28 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => handleSelectPreset(preset)}
-                className="text-left p-3 rounded-xl bg-white/5 border border-white/5 hover:border-indigo-500/40 hover:bg-white/10 transition group"
+                className="text-left p-3 rounded-lg bg-[#F9F8F6] border border-[#E5E5E0] hover:border-[#111827] hover:bg-[#F3F4F6] transition cursor-pointer"
               >
-                <div className="text-xs font-bold text-white group-hover:text-indigo-300 transition">
+                <div className="font-serif font-bold text-xs text-[#111827]">
                   {preset.name}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-1 font-mono">
-                  {preset.bounty} GEN Escrow
+                <div className="text-[11px] text-[#6B7280] mt-1 font-mono">
+                  {preset.bounty} GEN Bond
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Form */}
+        {/* Registration Form */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           {/* Bounty Amount */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-              <span>Bounty Amount to Lock in Escrow (GEN)</span>
-              <span className="text-[11px] text-indigo-400">Transferred from your wallet</span>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center justify-between">
+              <span>Bounty Bond Amount (GEN)</span>
+              <span className="text-[11px] font-sans font-normal text-[#6B7280]">
+                Escrowed from your connected balance
+              </span>
             </label>
             <div className="relative">
               <input
@@ -163,65 +167,67 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
                 onChange={(e) => setBountyAmount(e.target.value)}
                 placeholder="5.0"
                 required
-                className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+                className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-sm font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#4B5563] font-mono">
                 GEN
               </span>
             </div>
           </div>
 
-          {/* NDA Scope & Canary Markers */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-              <span>Protected NDA Scope & Canary Identifiers</span>
-              <span className="text-[11px] text-slate-500">Evaluated by GenLayer AI Consensus</span>
+          {/* Scope Definition */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center justify-between">
+              <span>Protected NDA Criteria & Canary Identifiers</span>
+              <span className="text-[11px] font-sans font-normal text-[#6B7280]">
+                Scrutinized by GenLayer AI Validators
+              </span>
             </label>
             <textarea
               rows={6}
               value={ndaScope}
               onChange={(e) => setNdaScope(e.target.value)}
-              placeholder="Specify the confidential criteria, forbidden disclosures, and unique canary keywords..."
+              placeholder="State the secret facts, parameters, and insert canary identifiers..."
               required
-              className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition resize-y"
+              className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition resize-y leading-relaxed"
             />
-            <p className="text-[11px] text-slate-400">
-              💡 <strong>Tip:</strong> Include a unique Canary Token (e.g. <code>CANARY_PHRASE_PROJECT_OMEGA_SEC_KEY_998</code>).
-              When a leak URL is submitted, the AI Jury checks if this specific string was exposed.
+            <p className="text-[11px] text-[#6B7280]">
+              💡 <strong>Gazette Advice:</strong> Provide exact canary tokens (e.g. <code>CANARY_PHRASE_PROJECT_OMEGA_SEC_KEY_998</code>).
+              Validators execute semantic comparison to verify whether the canary or specific secrets appear in reported web links.
             </p>
           </div>
 
-          {/* Error Message */}
+          {/* Error Banner */}
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2">
+            <div className="p-3 rounded-md bg-[#FEF2F2] border border-[#FCA5A5] text-xs text-[#B91C1C] flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Action Button */}
+          {/* Submit CTA */}
           <div className="pt-2">
             <button
               type="submit"
               disabled={isSubmitting || !account}
-              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white text-sm font-bold shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-6 rounded-md bg-[#111827] hover:bg-[#1F2937] text-white text-xs font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Locking Escrow & Registering On-Chain...</span>
+                  <span>Committing Escrow Bond to Studionet...</span>
                 </>
               ) : (
                 <>
-                  <Lock className="w-4 h-4" />
-                  <span>Lock {bountyAmount} GEN & Register NDA</span>
+                  <Lock className="w-4 h-4 text-[#86EFAC]" />
+                  <span>Lock {bountyAmount} GEN & Issue Escrow Docket</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </>
               )}
             </button>
             {!account && (
-              <p className="text-center text-xs text-slate-500 mt-2">
-                Connect your MetaMask wallet on Studionet to lock bounty.
+              <p className="text-center text-xs text-[#6B7280] mt-2">
+                Connect MetaMask wallet on Studionet to lock funds.
               </p>
             )}
           </div>

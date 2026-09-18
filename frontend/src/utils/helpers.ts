@@ -62,56 +62,56 @@ export function getStatusMeta(status: number, verdict?: string): StatusMeta {
     case 0:
       if (verdict === 'NO_BREACH') {
         return {
-          label: 'Active (False Alarm Cleared)',
-          badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-          bgClass: 'bg-emerald-500/5',
-          textClass: 'text-emerald-400',
-          borderClass: 'border-emerald-500/30',
+          label: 'Cleared / No Breach',
+          badgeClass: 'press-tag press-tag-forest',
+          bgClass: 'bg-forest-subtle',
+          textClass: 'text-forest',
+          borderClass: 'border-forest-border',
           icon: 'shield-check',
         };
       }
       return {
         label: 'Active & Secure',
-        badgeClass: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-        bgClass: 'bg-indigo-500/5',
-        textClass: 'text-indigo-400',
-        borderClass: 'border-indigo-500/30',
+        badgeClass: 'press-tag press-tag-forest',
+        bgClass: 'bg-forest-subtle',
+        textClass: 'text-forest',
+        borderClass: 'border-[#E5E5E0]',
         icon: 'shield',
       };
     case 1:
       return {
-        label: 'In Audit (Jury Convened)',
-        badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse',
-        bgClass: 'bg-amber-500/5',
-        textClass: 'text-amber-400',
-        borderClass: 'border-amber-500/30',
+        label: 'In Audit / Investigating',
+        badgeClass: 'press-tag press-tag-amber',
+        bgClass: 'bg-amber-subtle',
+        textClass: 'text-amber',
+        borderClass: 'border-amber-border',
         icon: 'alert-triangle',
       };
     case 2:
       return {
-        label: 'Breach Confirmed (Bounty Paid)',
-        badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-        bgClass: 'bg-rose-500/5',
-        textClass: 'text-rose-400',
-        borderClass: 'border-rose-500/30',
+        label: 'Breach Confirmed',
+        badgeClass: 'press-tag press-tag-crimson',
+        bgClass: 'bg-crimson-subtle',
+        textClass: 'text-crimson',
+        borderClass: 'border-crimson-border',
         icon: 'alert-octagon',
       };
     case 3:
       return {
-        label: 'Secure Term Expired (Reclaimed)',
-        badgeClass: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-        bgClass: 'bg-slate-500/5',
-        textClass: 'text-slate-400',
-        borderClass: 'border-slate-500/30',
+        label: 'Expired / Reclaimed',
+        badgeClass: 'press-tag press-tag-neutral',
+        bgClass: 'bg-[#F3F4F6]',
+        textClass: 'text-ink-secondary',
+        borderClass: 'border-[#E5E5E0]',
         icon: 'check-circle-2',
       };
     default:
       return {
-        label: 'Unknown',
-        badgeClass: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-        bgClass: 'bg-slate-500/5',
-        textClass: 'text-slate-400',
-        borderClass: 'border-slate-500/30',
+        label: 'Status Unknown',
+        badgeClass: 'press-tag press-tag-neutral',
+        bgClass: 'bg-[#F3F4F6]',
+        textClass: 'text-ink-muted',
+        borderClass: 'border-[#E5E5E0]',
         icon: 'help-circle',
       };
   }

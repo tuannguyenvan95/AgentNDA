@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Shield,
+  Search,
+  Loader2,
   PlusCircle,
   ShieldAlert,
   HelpCircle,
   RefreshCw,
-  Search,
-  Loader2,
-  Cpu,
-  Globe,
-  AlertTriangle,
+  Scale,
+  AlertOctagon,
 } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { StatsBar } from './components/StatsBar';
@@ -29,6 +27,7 @@ import {
   NDACaseData,
   ProtocolStats,
 } from './config/genlayer';
+import { formatGen } from './utils/helpers';
 
 export const App: React.FC = () => {
   // Wallet State
@@ -47,8 +46,8 @@ export const App: React.FC = () => {
   const [cases, setCases] = useState<NDACaseData[]>([]);
   const [isLoadingCases, setIsLoadingCases] = useState<boolean>(true);
 
-  // UI Navigation & Filters
-  const [activeTab, setActiveTab] = useState<'cases' | 'register' | 'whistleblower' | 'about'>('cases');
+  // Layout view mode
+  const [viewMode, setViewMode] = useState<'newspaper' | 'register' | 'whistleblower' | 'archive'>('newspaper');
   const [filter, setFilter] = useState<'all' | 'active' | 'audit' | 'settled'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -57,7 +56,7 @@ export const App: React.FC = () => {
   const [juryModalCase, setJuryModalCase] = useState<NDACaseData | null>(null);
   const [txPending, setTxPending] = useState<{ title: string; desc: string } | null>(null);
 
-  // Auto-fetch state from on-chain contract
+  // Refresh on-chain state
   const loadOnChainData = useCallback(async () => {
     try {
       const [newStats, newCases] = await Promise.all([
@@ -144,7 +143,6 @@ export const App: React.FC = () => {
       await adjudicateLeakOnChain(contractAddress, account, caseItem.case_id);
       await loadOnChainData();
       if (account) loadBalance(account);
-      // Fetch updated case and show jury report
       const updated = cases.find((c) => c.case_id === caseItem.case_id) || caseItem;
       setJuryModalCase(updated);
     } catch (err: any) {
@@ -177,7 +175,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // Listen for MetaMask events (account change, chain change)
+  // Listen for MetaMask events
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
       const ethereum = (window as any).ethereum;
@@ -201,7 +199,6 @@ export const App: React.FC = () => {
       ethereum.on('accountsChanged', handleAccountsChanged);
       ethereum.on('chainChanged', handleChainChanged);
 
-      // Check current accounts on mount
       ethereum.request({ method: 'eth_accounts' }).then((accs: string[]) => {
         if (accs && accs.length > 0) {
           setAccount(accs[0]);
@@ -219,7 +216,7 @@ export const App: React.FC = () => {
     }
   }, [loadBalance, account]);
 
-  // Periodic polling on-chain state
+  // Periodic polling
   useEffect(() => {
     loadOnChainData();
     const interval = setInterval(loadOnChainData, 10000);
@@ -228,15 +225,12 @@ export const App: React.FC = () => {
 
   // Filtered cases
   const filteredCases = cases.filter((c) => {
-    // Search query filter
     const matchesQuery =
       c.case_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.nda_scope.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.issuer.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (!matchesQuery) return false;
-
-    // Status filter
     if (filter === 'active') return c.status === 0;
     if (filter === 'audit') return c.status === 1;
     if (filter === 'settled') return c.status === 2 || c.status === 3;
@@ -246,8 +240,8 @@ export const App: React.FC = () => {
   const activeCasesCount = cases.filter((c) => c.status === 0).length;
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
-      {/* Navbar */}
+    <div className="min-h-screen bg-[#F9F8F6] text-[#111827] flex flex-col font-sans">
+      {/* Editorial Press Navbar Masthead */}
       <Navbar
         account={account}
         balance={balance}
@@ -260,186 +254,361 @@ export const App: React.FC = () => {
         onSwitchNetwork={handleSwitchNetwork}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Hero Banner */}
-        <div className="relative rounded-3xl p-6 sm:p-10 overflow-hidden bg-gradient-to-r from-indigo-950/50 via-[#121722] to-cyan-950/40 border border-white/10 shadow-2xl">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-semibold text-indigo-300">
-              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Subjective Consensus & AI Governance Protocol</span>
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Front-Page Editorial Headline Banner */}
+        <div className="bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
+          <div className="border-b border-[#E5E5E0] pb-4 mb-4 flex items-center justify-between">
+            <span className="press-tag press-tag-neutral text-[10px]">
+              LEAD EDITORIAL • SUBJECTIVE CONSENSUS JURISDICTION
+            </span>
+            <span className="text-xs font-mono text-[#6B7280]">
+              GENLAYER TEST HARNESS: STUDIONET
+            </span>
+          </div>
+
+          <div className="max-w-4xl space-y-3">
+            <h1 className="font-serif font-black text-3xl sm:text-5xl text-[#111827] leading-[1.1] tracking-tight">
               Autonomous Web3 Leak Adjudication & Whistleblower Bounty Escrow
             </h1>
-            <p className="text-xs sm:text-base text-slate-300 leading-relaxed">
-              Traditional paper NDAs fail in anonymous Web3 environments. AgentNDA replaces legal
-              jurisdiction with an <strong>autonomous on-chain court</strong>: validators read public leak
-              evidence live from the web, adjudicate material disclosure via LLM consensus, and
-              instantaneously settle bounties to whistleblowers.
+            <p className="text-sm sm:text-base text-[#4B5563] leading-relaxed font-serif">
+              In an agentic economy of pseudonymous builders and autonomous sub-agents, traditional paper NDAs
+              are unenforceable. AgentNDA establishes an on-chain court: decentralized LLM validators directly
+              crawl reported web links via <code className="text-[#111827] bg-[#F3F4F6] px-1 py-0.5 rounded font-mono text-xs">gl.nondet.web.render</code>,
+              adjudicate material leaks through semantic consensus, and instantaneously disburse bounty rewards to whistleblowers.
             </p>
+          </div>
 
-            {/* Quick CTAs */}
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+          {/* Quick Action Pills */}
+          <div className="mt-6 pt-4 border-t border-[#E5E5E0] flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => setActiveTab('register')}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition"
+                onClick={() => setViewMode('newspaper')}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === 'newspaper'
+                    ? 'bg-[#111827] text-white'
+                    : 'bg-[#F9F8F6] border border-[#E5E5E0] text-[#374151] hover:bg-[#F3F4F6]'
+                }`}
               >
-                <PlusCircle className="w-4 h-4" />
-                <span>Create NDA Escrow</span>
+                <span>3-Column Gazette View</span>
               </button>
               <button
-                onClick={() => setActiveTab('whistleblower')}
-                className="px-5 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs sm:text-sm font-bold flex items-center gap-2 transition"
+                onClick={() => setViewMode('register')}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === 'register'
+                    ? 'bg-[#111827] text-white'
+                    : 'bg-[#F9F8F6] border border-[#E5E5E0] text-[#374151] hover:bg-[#F3F4F6]'
+                }`}
               >
-                <ShieldAlert className="w-4 h-4" />
-                <span>Report a Leak</span>
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Issue Escrow Docket</span>
               </button>
               <button
-                onClick={() => setActiveTab('about')}
-                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs sm:text-sm font-semibold transition"
+                onClick={() => setViewMode('whistleblower')}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === 'whistleblower'
+                    ? 'bg-[#B91C1C] text-white'
+                    : 'bg-[#FEF2F2] border border-[#FCA5A5] text-[#B91C1C] hover:bg-[#FEE2E2]'
+                }`}
               >
-                How It Works
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Whistleblower Tip Line</span>
+              </button>
+              <button
+                onClick={() => setViewMode('archive')}
+                className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === 'archive'
+                    ? 'bg-[#111827] text-white'
+                    : 'bg-[#F9F8F6] border border-[#E5E5E0] text-[#374151] hover:bg-[#F3F4F6]'
+                }`}
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Jurisprudence & Precedent</span>
               </button>
             </div>
+
+            <button
+              onClick={loadOnChainData}
+              disabled={isLoadingCases}
+              className="px-3 py-1.5 rounded-md bg-[#FFFFFF] border border-[#E5E5E0] hover:bg-[#F3F4F6] text-xs font-medium text-[#4B5563] flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCases ? 'animate-spin text-[#111827]' : ''}`} />
+              <span className="font-mono">Sync Ledger</span>
+            </button>
           </div>
         </div>
 
-        {/* Aggregated Protocol Metrics Bar */}
+        {/* Index Statistics Strip */}
         <StatsBar stats={stats} activeCount={activeCasesCount} />
 
-        {/* Tab Navigation */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
-          <div className="flex items-center gap-2 p-1 bg-black/40 border border-white/10 rounded-2xl">
-            <button
-              onClick={() => setActiveTab('cases')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-                activeTab === 'cases'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>All NDA Escrows</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/10 text-slate-300">
-                {cases.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('register')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-                activeTab === 'register'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>Register NDA Escrow</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('whistleblower')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-                activeTab === 'whistleblower'
-                  ? 'bg-rose-600 text-white shadow-md shadow-rose-500/20'
-                  : 'text-slate-400 hover:text-rose-300'
-              }`}
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Whistleblower Portal</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('about')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-                activeTab === 'about'
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Architecture & Rules</span>
-            </button>
-          </div>
-
-          {/* Refresh State Button */}
-          <button
-            onClick={loadOnChainData}
-            disabled={isLoadingCases}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-slate-300 flex items-center gap-1.5 transition"
-            title="Refresh on-chain state"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCases ? 'animate-spin text-indigo-400' : ''}`} />
-            <span className="hidden sm:inline">Sync On-Chain</span>
-          </button>
-        </div>
-
-        {/* Tab 1: All Cases View */}
-        {activeTab === 'cases' && (
-          <div className="space-y-6">
-            {/* Filter & Search Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              {/* Search Box */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by Case ID, Canary keywords, or Issuer..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
-                />
+        {/* ========================================================================= */}
+        {/* NEWSPAPER 3-COLUMN GRID LAYOUT WITH CLEAR DIVIDING BORDER LINES */}
+        {/* ========================================================================= */}
+        {viewMode === 'newspaper' && (
+          <div className="bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl shadow-xs overflow-hidden">
+            {/* Column Headers Ribbon */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 border-b border-[#E5E5E0] bg-[#F5F4F0] text-[11px] font-mono text-[#4B5563] font-bold uppercase tracking-wider">
+              <div className="lg:col-span-5 p-3 px-5 border-b lg:border-b-0 lg:border-r border-[#E5E5E0] flex items-center justify-between">
+                <span>SECTION I: ACTIVE COURT DOCKETS</span>
+                <span className="text-xs font-serif font-bold text-[#111827]">
+                  {filteredCases.length} LISTED
+                </span>
               </div>
-
-              {/* Status Filter Buttons */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                {(['all', 'active', 'audit', 'settled'] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition ${
-                      filter === f
-                        ? 'bg-white/10 text-white border border-white/20'
-                        : 'text-slate-400 hover:text-white bg-transparent'
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
+              <div className="lg:col-span-4 p-3 px-5 border-b lg:border-b-0 lg:border-r border-[#E5E5E0] flex items-center justify-between">
+                <span>SECTION II: WHISTLEBLOWER TELEGRAPH</span>
+                <span className="text-[#B91C1C] flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#B91C1C]" />
+                  TIP LINE OPEN
+                </span>
+              </div>
+              <div className="lg:col-span-3 p-3 px-5 flex items-center justify-between">
+                <span>SECTION III: COURT PRECEDENT</span>
+                <span>GENLAYER</span>
               </div>
             </div>
 
-            {/* Cases Grid */}
-            {isLoadingCases && cases.length === 0 ? (
-              <div className="glass-panel rounded-3xl p-16 text-center space-y-3">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-400 mx-auto" />
-                <p className="text-sm text-slate-300 font-medium">Hydrating NDA Escrows from GenLayer Studionet...</p>
-                <p className="text-xs text-slate-500 font-mono">Target: {contractAddress}</p>
-              </div>
-            ) : filteredCases.length === 0 ? (
-              <div className="glass-panel rounded-3xl p-16 text-center space-y-4">
-                <Shield className="w-12 h-12 text-slate-600 mx-auto" />
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-white">No NDA Escrows Found</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    {searchQuery
-                      ? 'No cases match your search query.'
-                      : 'There are currently no NDA escrow cases on this contract address. Register the first case!'}
-                  </p>
+            {/* 3 Columns Body */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-[#E5E5E0]">
+              {/* ------------------------------------------------------------- */}
+              {/* COLUMN 1: Active Dockets & Escrows (5 cols) */}
+              {/* ------------------------------------------------------------- */}
+              <div className="lg:col-span-5 p-5 sm:p-6 space-y-4">
+                {/* Search & Filter Controls */}
+                <div className="space-y-3 pb-2 border-b border-[#E5E5E0]">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search dockets, canaries, issuers..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] focus:outline-none focus:border-[#111827]"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                    {(['all', 'active', 'audit', 'settled'] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                          filter === f
+                            ? 'bg-[#111827] text-white'
+                            : 'bg-[#F9F8F6] border border-[#E5E5E0] text-[#4B5563] hover:text-[#111827]'
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  onClick={() => setActiveTab('register')}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition inline-flex items-center gap-2"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Create First NDA Escrow</span>
-                </button>
+
+                {/* Cases List */}
+                {isLoadingCases && cases.length === 0 ? (
+                  <div className="py-16 text-center space-y-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#111827] mx-auto" />
+                    <p className="text-xs text-[#6B7280]">Hydrating ledger from Studionet...</p>
+                  </div>
+                ) : filteredCases.length === 0 ? (
+                  <div className="py-16 text-center space-y-3 border border-dashed border-[#E5E5E0] rounded-lg p-6">
+                    <Scale className="w-8 h-8 text-[#9CA3AF] mx-auto" />
+                    <h4 className="font-serif font-bold text-base text-[#111827]">No Dockets Match Query</h4>
+                    <p className="text-xs text-[#6B7280] max-w-xs mx-auto">
+                      Create a new confidential escrow bond or reset filters to inspect existing dockets.
+                    </p>
+                    <button
+                      onClick={() => setViewMode('register')}
+                      className="px-3 py-1.5 rounded-md bg-[#111827] text-white text-xs font-bold cursor-pointer"
+                    >
+                      Issue First Docket
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredCases.map((c) => (
+                      <CaseCard
+                        key={c.case_id}
+                        caseItem={c}
+                        account={account}
+                        onReportLeak={(item) => setReportModalCase(item)}
+                        onAdjudicateLeak={handleAdjudicate}
+                        onCloseAndReclaim={handleCloseAndReclaim}
+                        onViewJuryReport={(item) => setJuryModalCase(item)}
+                        isActionPending={txPending !== null}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {filteredCases.map((c) => (
+
+              {/* ------------------------------------------------------------- */}
+              {/* COLUMN 2: Fast Registrar & Whistleblower Bureau (4 cols) */}
+              {/* ------------------------------------------------------------- */}
+              <div className="lg:col-span-4 p-5 sm:p-6 space-y-6 bg-[#FCFBF9]">
+                {/* Whistleblower Fast Dispatch */}
+                <div className="space-y-3 border-b border-[#E5E5E0] pb-5">
+                  <div className="flex items-center gap-2 text-[#B91C1C]">
+                    <AlertOctagon className="w-4 h-4" />
+                    <h3 className="font-serif font-bold text-lg text-[#111827]">
+                      Whistleblower Bureau
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#4B5563] leading-relaxed">
+                    Have you spotted leaked canary phrases on Pastebin, X/Twitter, or forums?
+                    Select an active docket to submit proof.
+                  </p>
+
+                  <div className="space-y-2 pt-1">
+                    {cases
+                      .filter((c) => c.status === 0)
+                      .slice(0, 3)
+                      .map((c) => (
+                        <div
+                          key={c.case_id}
+                          className="p-3 bg-[#FFFFFF] border border-[#E5E5E0] rounded-lg hover:border-[#B91C1C] transition flex items-center justify-between gap-2"
+                        >
+                          <div>
+                            <span className="font-mono text-[10px] text-[#6B7280] font-bold">
+                              {c.case_id}
+                            </span>
+                            <div className="font-serif font-bold text-xs text-[#111827]">
+                              Bounty: {formatGen(c.bounty_amount)} GEN
+                            </div>
+                            <p className="text-[10px] text-[#6B7280] font-mono truncate max-w-[180px]">
+                              {c.nda_scope}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setReportModalCase(c)}
+                            className="px-2.5 py-1 rounded bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#B91C1C] text-[11px] font-bold border border-[#FCA5A5] flex-shrink-0 cursor-pointer"
+                          >
+                            Report Leak
+                          </button>
+                        </div>
+                      ))}
+
+                    {cases.filter((c) => c.status === 0).length === 0 && (
+                      <p className="text-xs text-[#6B7280] italic py-2">
+                        No active dockets currently pending leak reports.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Issue Escrow Teaser */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-[#111827]">
+                    <PlusCircle className="w-4 h-4" />
+                    <h3 className="font-serif font-bold text-lg text-[#111827]">
+                      Issue New Escrow Bond
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#4B5563] leading-relaxed">
+                    Lock native GEN into an autonomous confidentiality contract before disclosing secrets to contractors or sub-agents.
+                  </p>
+                  <button
+                    onClick={() => setViewMode('register')}
+                    className="w-full py-2 px-4 rounded-md bg-[#111827] hover:bg-[#1F2937] text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer"
+                  >
+                    Open Escrow Form
+                  </button>
+                </div>
+              </div>
+
+              {/* ------------------------------------------------------------- */}
+              {/* COLUMN 3: Precedent & Why GenLayer (3 cols) */}
+              {/* ------------------------------------------------------------- */}
+              <div className="lg:col-span-3 p-5 sm:p-6 space-y-6 bg-[#FFFFFF]">
+                <div>
+                  <h3 className="font-serif font-bold text-lg text-[#111827] pb-2 border-b border-[#E5E5E0]">
+                    Judicial Gazette
+                  </h3>
+                </div>
+
+                {/* Editorial Precedent 1 */}
+                <article className="space-y-2 pb-4 border-b border-[#E5E5E0]">
+                  <span className="press-tag press-tag-crimson text-[9px]">
+                    THE WEB3 DILEMMA
+                  </span>
+                  <h4 className="font-serif font-bold text-sm text-[#111827] leading-snug">
+                    Why Paper NDAs Are Dead in the Agentic Economy
+                  </h4>
+                  <p className="text-xs text-[#4B5563] leading-relaxed">
+                    Pseudonymous auditors and AI agents operate beyond traditional legal borders.
+                    No civil court can serve a subpoena to an anonymous Ethereum address.
+                    Economic escrows on GenLayer substitute paper threats with cryptographic reality.
+                  </p>
+                </article>
+
+                {/* Editorial Precedent 2 */}
+                <article className="space-y-2 pb-4 border-b border-[#E5E5E0]">
+                  <span className="press-tag press-tag-forest text-[9px]">
+                    ARCHITECTURAL TRUTH
+                  </span>
+                  <h4 className="font-serif font-bold text-sm text-[#111827] leading-snug">
+                    Solidity's Inability to Read the Web
+                  </h4>
+                  <p className="text-xs text-[#4B5563] leading-relaxed">
+                    Smart contracts on Ethereum cannot verify if an unreleased codebase or canary was
+                    posted on Pastebin. GenLayer validators execute <code className="font-mono text-[10px] text-[#111827]">gl.nondet.web.render</code> directly
+                    on-chain without relying on trusted oracle middlemen.
+                  </p>
+                </article>
+
+                {/* Editorial Precedent 3 */}
+                <article className="space-y-2">
+                  <span className="press-tag press-tag-amber text-[9px]">
+                    CONSENSUS ENGINE
+                  </span>
+                  <h4 className="font-serif font-bold text-sm text-[#111827] leading-snug">
+                    Optimistic Democracy on Semantic Verdicts
+                  </h4>
+                  <p className="text-xs text-[#4B5563] leading-relaxed">
+                    Validators compare whether the breach verdict aligns (<code className="font-mono text-[10px] text-[#111827]">mine["verdict"] == leader["verdict"]</code>).
+                    Different natural language explanations are permitted, ensuring subjective consensus on facts without rigid schema brittleness.
+                  </p>
+                </article>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Mode: Register New NDA */}
+        {viewMode === 'register' && (
+          <RegisterNDA
+            contractAddress={contractAddress}
+            account={account}
+            onSuccess={() => {
+              loadOnChainData();
+              if (account) loadBalance(account);
+              setViewMode('newspaper');
+            }}
+            onTxStart={(title, desc) => setTxPending({ title, desc })}
+            onTxEnd={() => setTxPending(null)}
+          />
+        )}
+
+        {/* View Mode: Whistleblower Portal */}
+        {viewMode === 'whistleblower' && (
+          <div className="bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl p-6 sm:p-8 space-y-6 shadow-xs">
+            <div className="border-b border-[#E5E5E0] pb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="press-tag press-tag-crimson text-[10px]">
+                  WHISTLEBLOWER DISPATCH DESK
+                </span>
+              </div>
+              <h2 className="font-serif font-bold text-2xl text-[#111827]">
+                Submit Evidence of Confidential Leak
+              </h2>
+              <p className="text-xs sm:text-sm text-[#4B5563] mt-1">
+                Select from the list of monitored active escrow dockets to report unauthorized disclosure.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {cases
+                .filter((c) => c.status === 0)
+                .map((c) => (
                   <CaseCard
                     key={c.case_id}
                     caseItem={c}
@@ -451,157 +620,52 @@ export const App: React.FC = () => {
                     isActionPending={txPending !== null}
                   />
                 ))}
-              </div>
+            </div>
+
+            {cases.filter((c) => c.status === 0).length === 0 && (
+              <p className="text-xs text-[#6B7280] italic text-center py-10">
+                No active dockets available for leak reporting at this time.
+              </p>
             )}
           </div>
         )}
 
-        {/* Tab 2: Register New NDA */}
-        {activeTab === 'register' && (
-          <RegisterNDA
-            contractAddress={contractAddress}
-            account={account}
-            onSuccess={() => {
-              loadOnChainData();
-              if (account) loadBalance(account);
-              setActiveTab('cases');
-            }}
-            onTxStart={(title, desc) => setTxPending({ title, desc })}
-            onTxEnd={() => setTxPending(null)}
-          />
-        )}
-
-        {/* Tab 3: Whistleblower Portal */}
-        {activeTab === 'whistleblower' && (
-          <div className="space-y-6">
-            <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/40 to-[#121722] border border-rose-500/20 space-y-2">
-              <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
-                <ShieldAlert className="w-4 h-4" />
-                <span>Whistleblower Bounty Portal</span>
-              </div>
-              <h2 className="text-xl font-black text-white">
-                Earn On-Chain Rewards For Proven Information Leaks
+        {/* View Mode: Jurisprudence & Precedent */}
+        {viewMode === 'archive' && (
+          <div className="bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl p-8 space-y-6 shadow-xs max-w-4xl mx-auto">
+            <div className="border-b border-[#E5E5E0] pb-4">
+              <span className="press-tag press-tag-neutral text-[10px]">
+                COMPENDIUM OF LAW & CODE
+              </span>
+              <h2 className="font-serif font-bold text-3xl text-[#111827] mt-1">
+                The GenLayer Adjudication Standard
               </h2>
-              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                Organizations lock GEN bounties to ensure their trade secrets remain confidential.
-                If you discover a leak on Twitter/X, Pastebin, technical blogs, or forums, submit the URL.
-                GenLayer's AI Jury will autonomously crawl the link, compare it with protected canaries,
-                and immediately award 100% of the locked bounty upon consensus confirmation.
+            </div>
+
+            <div className="space-y-4 text-xs sm:text-sm text-[#374151] leading-relaxed font-serif">
+              <p>
+                AgentNDA operates on the principle that <strong>economic incentives and decentralized consensus</strong> can
+                replace ambiguous jurisdictional courts. By locking collateral upfront, both the secret-holder and the recipient
+                enter a verifiable compact.
               </p>
-            </div>
-
-            {/* List of Active cases ready for leak reporting */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
-                Active Protected Contracts (Ready for Leak Submission):
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {cases
-                  .filter((c) => c.status === 0)
-                  .map((c) => (
-                    <CaseCard
-                      key={c.case_id}
-                      caseItem={c}
-                      account={account}
-                      onReportLeak={(item) => setReportModalCase(item)}
-                      onAdjudicateLeak={handleAdjudicate}
-                      onCloseAndReclaim={handleCloseAndReclaim}
-                      onViewJuryReport={(item) => setJuryModalCase(item)}
-                      isActionPending={txPending !== null}
-                    />
-                  ))}
-              </div>
-              {cases.filter((c) => c.status === 0).length === 0 && (
-                <div className="p-8 text-center text-xs text-slate-500 glass-panel rounded-2xl">
-                  No active NDAs currently waiting for leak monitoring.
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="p-4 bg-[#F9F8F6] border border-[#E5E5E0] rounded-lg">
+                  <h4 className="font-serif font-bold text-sm text-[#111827] mb-1">
+                    Decentralized Proof of Disclosure
+                  </h4>
+                  <p className="text-xs text-[#4B5563] font-sans">
+                    Any public evidence URL (Pastebin, Twitter/X, GitHub Gist) can be rendered directly by GenVM nodes
+                    without relying on API keys or centralized servers.
+                  </p>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 4: Architecture & Rules Guide */}
-        {activeTab === 'about' && (
-          <div className="max-w-4xl mx-auto space-y-8">
-            <div className="glass-panel rounded-3xl p-8 space-y-6 border border-white/10">
-              <div>
-                <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
-                  The GenLayer Unique Hook
-                </span>
-                <h2 className="text-2xl font-black text-white mt-1">
-                  Why AgentNDA Dies Without GenLayer
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-                {/* Traditional / Solidity */}
-                <div className="p-5 rounded-2xl bg-black/40 border border-white/5 space-y-3">
-                  <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>Traditional Web3 & Solidity Fails</span>
-                  </div>
-                  <ul className="text-xs text-slate-300 space-y-2 list-disc list-inside leading-relaxed">
-                    <li>
-                      <strong>Paper NDAs are useless in Web3:</strong> Anonymous developers, sub-agents,
-                      and auditor hackers cannot be hauled into municipal courts.
-                    </li>
-                    <li>
-                      <strong>Solidity is blind to the web:</strong> Smart contracts on Ethereum cannot
-                      read Twitter, Pastebin, or news blogs without centralized, trusted oracles.
-                    </li>
-                    <li>
-                      <strong>No subjective understanding:</strong> Solidity cannot semantically assess
-                      whether a leaked snippet matches a protected trade secret or is just a rumor.
-                    </li>
-                  </ul>
-                </div>
-
-                {/* GenLayer Solution */}
-                <div className="p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                    <Cpu className="w-4 h-4" />
-                    <span>AgentNDA on GenLayer Studionet</span>
-                  </div>
-                  <ul className="text-xs text-slate-200 space-y-2 list-disc list-inside leading-relaxed">
-                    <li>
-                      <strong>Live Web Access on-chain:</strong> Validators invoke <code>gl.nondet.web.render</code> directly
-                      to extract public evidence content without any middleman oracle.
-                    </li>
-                    <li>
-                      <strong>Semantic Consensus:</strong> Multiple validator LLMs evaluate disclosure
-                      severity against protected canaries and agree on the <code>VERDICT</code> via <code>gl.vm.run_nondet</code>.
-                    </li>
-                    <li>
-                      <strong>Autonomous Payout:</strong> Whistleblower receives instant native GEN reward
-                      directly from contract via <code>emit_transfer</code>.
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              {/* Consensus Lifecycle Diagram */}
-              <div className="pt-4 border-t border-white/5 space-y-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-cyan-400" />
-                  <span>The 4-Step Autonomous Adjudication Lifecycle</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                  <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
-                    <span className="font-mono text-indigo-400 font-bold">01. Escrow</span>
-                    <p className="text-[11px] text-slate-400">Issuer locks GEN bounty & specifies confidential scope and canaries.</p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
-                    <span className="font-mono text-rose-400 font-bold">02. Report</span>
-                    <p className="text-[11px] text-slate-400">Whistleblower submits live URL where secrets were allegedly exposed.</p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
-                    <span className="font-mono text-cyan-400 font-bold">03. Jury Adjudication</span>
-                    <p className="text-[11px] text-slate-400">Validators scrape URL & compare content via LLM Optimistic Democracy.</p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
-                    <span className="font-mono text-emerald-400 font-bold">04. Instant Settle</span>
-                    <p className="text-[11px] text-slate-400">BREACH_CONFIRMED transfers bounty to whistleblower; false reports reset to active.</p>
-                  </div>
+                <div className="p-4 bg-[#F9F8F6] border border-[#E5E5E0] rounded-lg">
+                  <h4 className="font-serif font-bold text-sm text-[#111827] mb-1">
+                    Semantic Consensus Integrity
+                  </h4>
+                  <p className="text-xs text-[#4B5563] font-sans">
+                    Rather than exact byte comparisons, the leader and validators agree on the verdict outcome:
+                    whether the protected secret was exposed above the confidence threshold.
+                  </p>
                 </div>
               </div>
             </div>
@@ -609,27 +673,19 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-8 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 space-y-2">
-          <p>
-            AgentNDA — Autonomous Web3 Leak Adjudication & Whistleblower Bounty Escrow on{' '}
-            <a
-              href="https://studio.genlayer.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-indigo-400 underline hover:text-indigo-300"
-            >
-              GenLayer Studionet (Chain ID: 61999)
-            </a>
+      {/* Editorial Footer */}
+      <footer className="border-t border-[#E5E5E0] bg-[#FFFFFF] py-6 text-center text-xs text-[#6B7280]">
+        <div className="max-w-7xl mx-auto px-4 space-y-1.5">
+          <p className="font-serif font-bold text-[#111827]">
+            THE AGENTIC ADJUDICATOR • AGENTNDA PRESS EDITION
           </p>
-          <p className="font-mono text-[11px]">
-            Contract: {contractAddress}
+          <p className="font-mono text-[11px] text-[#4B5563]">
+            Deployed on GenLayer Studionet (Chain ID: 61999) • Contract: {contractAddress}
           </p>
         </div>
       </footer>
 
-      {/* Report Leak Modal */}
+      {/* Whistleblower Leak Report Modal */}
       {reportModalCase && (
         <ReportLeak
           caseData={reportModalCase}
@@ -645,7 +701,7 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Breach Jury Report Modal */}
+      {/* AI Jury Verdict Modal */}
       {juryModalCase && (
         <BreachJuryModal
           caseData={juryModalCase}
@@ -653,35 +709,19 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Transaction Pending Consensus Overlay */}
+      {/* Transaction Pending Modal */}
       {txPending && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-          <div className="w-full max-w-md bg-[#121722] border border-indigo-500/30 rounded-3xl p-8 shadow-2xl text-center space-y-5">
-            <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
-              <div className="w-full h-full rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
-              <Cpu className="w-7 h-7 text-cyan-400 absolute" />
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-black text-white">{txPending.title}</h3>
-              <p className="text-xs text-slate-300 leading-relaxed font-mono">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl p-8 shadow-2xl text-center space-y-4">
+            <Loader2 className="w-8 h-8 text-[#111827] animate-spin mx-auto" />
+            <div className="space-y-1">
+              <h3 className="font-serif font-bold text-lg text-[#111827]">{txPending.title}</h3>
+              <p className="text-xs text-[#4B5563] font-mono leading-relaxed">
                 {txPending.desc}
               </p>
             </div>
-
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 text-[11px] text-slate-400 space-y-1">
-              <div className="flex items-center justify-between">
-                <span>Consensus Engine:</span>
-                <span className="text-indigo-400 font-bold">Optimistic Democracy</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Target Network:</span>
-                <span className="text-cyan-400 font-bold">Studionet (61999)</span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500">
-              Non-deterministic transactions involve decentralized LLM inference and may take ~10-25 seconds to finalize.
+            <p className="text-[11px] text-[#6B7280]">
+              GenLayer consensus takes ~10-25s for decentralized LLM inference.
             </p>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, AlertOctagon, Lock, Cpu, Globe } from 'lucide-react';
+import { Lock, AlertOctagon, ShieldCheck, Globe } from 'lucide-react';
 import { ProtocolStats } from '../config/genlayer';
 import { formatGen } from '../utils/helpers';
 
@@ -10,87 +10,92 @@ interface StatsBarProps {
 
 export const StatsBar: React.FC<StatsBarProps> = ({ stats, activeCount }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Metric 1: Total Bounty in Escrow */}
-      <div className="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-indigo-500/30 transition">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Total Bounty Locked
-          </span>
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-            <Lock className="w-4 h-4" />
-          </div>
-        </div>
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl font-extrabold text-white font-mono">
-            {formatGen(stats.total_bounty_locked)}
-          </span>
-          <span className="text-xs font-semibold text-indigo-400">GEN</span>
-        </div>
-        <div className="mt-1 text-[11px] text-slate-500 flex items-center gap-1.5">
-          <span>Native Escrow Pool</span>
-        </div>
+    <div className="bg-[#FFFFFF] border border-[#E5E5E0] rounded-xl shadow-xs overflow-hidden">
+      {/* Editorial Section Subhead */}
+      <div className="bg-[#F5F4F0] px-4 py-2 border-b border-[#E5E5E0] flex items-center justify-between text-[11px] font-mono text-[#4B5563] uppercase tracking-wider">
+        <span>INDEX & PROTOCOL DISPATCH TELEMETRY</span>
+        <span className="text-[#15803D] font-bold flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#15803D]" />
+          STUDIONET SYNCHRONIZED
+        </span>
       </div>
 
-      {/* Metric 2: Settled Breaches */}
-      <div className="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-rose-500/30 transition">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Breaches Adjudicated
-          </span>
-          <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-            <AlertOctagon className="w-4 h-4" />
+      {/* 4-column metric ticker with dividing borders */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E5E5E0]">
+        {/* Metric 1: Total Bounty in Escrow */}
+        <div className="p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#6B7280] uppercase tracking-wider">
+            <span>Escrow Pool Value</span>
+            <Lock className="w-4 h-4 text-[#111827]" />
+          </div>
+          <div className="mt-2.5">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-serif font-bold text-2xl text-[#111827]">
+                {formatGen(stats.total_bounty_locked)}
+              </span>
+              <span className="text-xs font-mono font-bold text-[#6B7280]">GEN</span>
+            </div>
+            <p className="mt-1 text-[11px] text-[#9CA3AF] font-sans">
+              Locked in active bond contracts
+            </p>
           </div>
         </div>
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl font-extrabold text-rose-400 font-mono">
-            {stats.total_breaches_settled}
-          </span>
-          <span className="text-xs text-slate-400">cases</span>
-        </div>
-        <div className="mt-1 text-[11px] text-slate-500">
-          Whistleblower bounties settled
-        </div>
-      </div>
 
-      {/* Metric 3: Active Monitored NDAs */}
-      <div className="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/30 transition">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Active NDA Escrows
-          </span>
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-            <ShieldCheck className="w-4 h-4" />
+        {/* Metric 2: Settled Breaches */}
+        <div className="p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#6B7280] uppercase tracking-wider">
+            <span>Breaches Confirmed</span>
+            <AlertOctagon className="w-4 h-4 text-[#B91C1C]" />
+          </div>
+          <div className="mt-2.5">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-serif font-bold text-2xl text-[#B91C1C]">
+                {stats.total_breaches_settled}
+              </span>
+              <span className="text-xs font-sans text-[#6B7280]">cases</span>
+            </div>
+            <p className="mt-1 text-[11px] text-[#9CA3AF] font-sans">
+              Bounties forfeited & settled
+            </p>
           </div>
         </div>
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl font-extrabold text-emerald-400 font-mono">
-            {activeCount}
-          </span>
-          <span className="text-xs text-slate-400">/ {stats.total_cases} total</span>
-        </div>
-        <div className="mt-1 text-[11px] text-slate-500">
-          Monitored on Studionet
-        </div>
-      </div>
 
-      {/* Metric 4: AI Consensus Engine Status */}
-      <div className="glass-panel rounded-2xl p-5 relative overflow-hidden group hover:border-cyan-500/30 transition">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            AI Jury Court
-          </span>
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-            <Cpu className="w-4 h-4" />
+        {/* Metric 3: Active NDA Dockets */}
+        <div className="p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#6B7280] uppercase tracking-wider">
+            <span>Active Dockets</span>
+            <ShieldCheck className="w-4 h-4 text-[#15803D]" />
+          </div>
+          <div className="mt-2.5">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-serif font-bold text-2xl text-[#15803D]">
+                {activeCount}
+              </span>
+              <span className="text-xs font-sans text-[#6B7280]">/ {stats.total_cases} total</span>
+            </div>
+            <p className="mt-1 text-[11px] text-[#9CA3AF] font-sans">
+              Monitored for canary exposure
+            </p>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-          <span className="text-sm font-bold text-white">Live Web Reader</span>
-        </div>
-        <div className="mt-2 text-[11px] text-slate-400 flex items-center gap-1">
-          <Globe className="w-3 h-3 text-cyan-400 inline" />
-          <span>gl.nondet.web.render active</span>
+
+        {/* Metric 4: AI Consensus Engine */}
+        <div className="p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs font-semibold text-[#6B7280] uppercase tracking-wider">
+            <span>Autonomous Web Court</span>
+            <Globe className="w-4 h-4 text-[#111827]" />
+          </div>
+          <div className="mt-2.5">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#15803D]" />
+              <span className="font-serif font-bold text-lg text-[#111827]">
+                Live Web Scraper
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-[#6B7280] font-mono truncate">
+              gl.nondet.web.render
+            </p>
+          </div>
         </div>
       </div>
     </div>
