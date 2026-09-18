@@ -50,6 +50,7 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
   onTxEnd,
 }) => {
   const [bountyAmount, setBountyAmount] = useState('5.0');
+  const [durationDays, setDurationDays] = useState('7');
   const [ndaScope, setNdaScope] = useState(PRESET_TEMPLATES[0].scope);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -78,15 +79,17 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
       return;
     }
 
+    const durationSeconds = Math.max(86400, parseInt(durationDays, 10) * 86400);
+
     setErrorMsg(null);
     setIsSubmitting(true);
     onTxStart(
       'Registering Escrow Docket',
-      `Locking ${bountyAmount} GEN into on-chain escrow bond and indexing canary parameters.`
+      `Locking ${bountyAmount} GEN into on-chain escrow bond for ${durationDays} days and indexing canary parameters.`
     );
 
     try {
-      await registerNdaEscrowOnChain(contractAddress, account, ndaScope, wei);
+      await registerNdaEscrowOnChain(contractAddress, account, ndaScope, wei, durationSeconds);
       onSuccess();
     } catch (err: any) {
       console.error('Error registering NDA escrow:', err);
@@ -150,28 +153,51 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-          {/* Bounty Amount */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center justify-between">
-              <span>Bounty Bond Amount (GEN)</span>
-              <span className="text-[11px] font-sans font-normal text-[#6B7280]">
-                Escrowed from your connected balance
-              </span>
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={bountyAmount}
-                onChange={(e) => setBountyAmount(e.target.value)}
-                placeholder="5.0"
-                required
-                className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-sm font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition"
-              />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#4B5563] font-mono">
-                GEN
-              </span>
+          {/* Bounty Amount & Duration Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Bounty Amount */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center justify-between">
+                <span>Bounty Bond (GEN)</span>
+                <span className="text-[11px] font-sans font-normal text-[#6B7280]">
+                  Escrowed balance
+                </span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={bountyAmount}
+                  onChange={(e) => setBountyAmount(e.target.value)}
+                  placeholder="5.0"
+                  required
+                  className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-sm font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#4B5563] font-mono">
+                  GEN
+                </span>
+              </div>
+            </div>
+
+            {/* Confidential Duration */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center justify-between">
+                <span>Protected Duration</span>
+                <span className="text-[11px] font-sans font-normal text-[#6B7280]">
+                  Time-lock period
+                </span>
+              </label>
+              <select
+                value={durationDays}
+                onChange={(e) => setDurationDays(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-sm font-sans text-[#111827] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition cursor-pointer"
+              >
+                <option value="1">1 Day (Fast Demo / 24h Embargo)</option>
+                <option value="7">7 Days (Standard Launch Sprint)</option>
+                <option value="30">30 Days (Extended Protection)</option>
+                <option value="90">90 Days (Strategic NDA)</option>
+              </select>
             </div>
           </div>
 

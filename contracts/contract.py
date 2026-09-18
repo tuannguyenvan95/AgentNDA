@@ -15,24 +15,27 @@ def _addr_str(addr: Address) -> str:
 @allow_storage
 @dataclass
 class NDACase:
-    """Storage struct representing an on-chain autonomous NDA & leak escrow."""
+    """Storage struct representing an on-chain autonomous NDA and leak escrow."""
     case_id: str
     issuer: Address
     whistleblower: Address
     bounty_amount: bigint
+    reporter_bond: bigint         # Anti-spam deposit staked by whistleblower
     nda_scope: str                 # Confidential criteria, trade secrets, canary identifiers
     evidence_url: str              # Public URL of leaked article, post, or pastebin
     status: u8                     # 0: ACTIVE_SECURE, 1: IN_AUDIT, 2: BREACH_CONFIRMED, 3: SECURE_EXPIRED
-    verdict: str                   # "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "SECURE_EXPIRED"
+    verdict: str                   # "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "FETCH_FAILED", "SECURE_EXPIRED"
     reason: str                    # Detailed jury breach justification
     confidence: u8                 # 0 - 100: Validator consensus confidence
     leak_severity: u8              # 0 - 100: Degree of confidential exposure
-    created_at_block: u256
+    created_at_timestamp: u256
+    expires_at_timestamp: u256     # Timestamp after which issuer can reclaim funds
+    audit_started_at: u256         # Timestamp when report_leak was triggered (for timeout protection)
 
 
 class Contract(gl.Contract):
     """
-    AgentNDA: Autonomous Web3 Leak Adjudication & Whistleblower Bounty Escrow
+    AgentNDA: Autonomous Web3 Leak Adjudication and Whistleblower Bounty Escrow
     Target Network: studionet (Chain ID: 61999)
     """
     cases: TreeMap[str, NDACase]
@@ -47,10 +50,25 @@ class Contract(gl.Contract):
         self.total_breaches_settled = u32(0)
         self.case_counter = u64(0)
 
+    def _get_current_timestamp(self) -> u256:
+        """Derive execution timestamp strictly from GenLayer transaction context."""
+        if hasattr(gl, "message_raw") and isinstance(gl.message_raw, dict):
+            dt_raw = gl.message_raw.get("datetime", None)
+            if dt_raw:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(str(dt_raw).replace("Z", "+00:00"))
+                    ts = int(dt.timestamp())
+                    if ts > 0:
+                        return u256(ts)
+                except Exception:
+                    pass
+        return u256(1770000000)
+
     @gl.public.write.payable
-    def register_nda_escrow(self, nda_scope: str) -> str:
+    def register_nda_escrow(self, nda_scope: str, duration_seconds: int = 604800) -> str:
         """
-        Issuer locks native GEN bounty pool and registers the confidential scope/canary markers.
+        Issuer locks native GEN bounty pool, registers confidential scope, and sets duration.
         """
         bounty = bigint(gl.message.value)
         if bounty <= bigint(0):
@@ -59,9 +77,12 @@ class Contract(gl.Contract):
         if not nda_scope or len(nda_scope.strip()) == 0:
             raise gl.UserError("NDA confidential scope definition cannot be empty.")
 
+        duration = u256(duration_seconds if duration_seconds > 0 else 604800)
+
         self.case_counter = self.case_counter + u64(1)
         case_id = f"nda-{int(self.case_counter)}"
-        current_block = u256(int(self.case_counter))
+        now = self._get_current_timestamp()
+        expires_at = now + duration
         empty_whistleblower = Address("0x0000000000000000000000000000000000000000")
 
         new_case = NDACase(
@@ -69,6 +90,7 @@ class Contract(gl.Contract):
             issuer=gl.message.sender_address,
             whistleblower=empty_whistleblower,
             bounty_amount=bounty,
+            reporter_bond=bigint(0),
             nda_scope=nda_scope.strip(),
             evidence_url="",
             status=u8(0),  # ACTIVE_SECURE
@@ -76,7 +98,9 @@ class Contract(gl.Contract):
             reason="NDA active. Awaiting leak evidence or contract expiration.",
             confidence=u8(0),
             leak_severity=u8(0),
-            created_at_block=current_block,
+            created_at_timestamp=now,
+            expires_at_timestamp=expires_at,
+            audit_started_at=u256(0),
         )
 
         self.cases[case_id] = new_case
@@ -85,10 +109,10 @@ class Contract(gl.Contract):
 
         return case_id
 
-    @gl.public.write
+    @gl.public.write.payable
     def report_leak(self, case_id: str, evidence_url: str) -> None:
         """
-        Whistleblower submits public evidence URL showing confidential information was leaked.
+        Whistleblower submits evidence URL. Staking a small bond prevents spam DoS attacks.
         """
         if case_id not in self.cases:
             raise gl.UserError(f"Case {case_id} does not exist.")
@@ -101,10 +125,21 @@ class Contract(gl.Contract):
         if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
             raise gl.UserError("Valid public leak evidence URL (http/https) is required.")
 
+        # Minimum anti-spam bond: 5% of bounty (or at least 1 wei)
+        min_bond = c.bounty_amount // bigint(20)
+        if min_bond == bigint(0):
+            min_bond = bigint(1)
+
+        bond_sent = bigint(gl.message.value)
+        if bond_sent < min_bond:
+            raise gl.UserError(f"Whistleblower must stake anti-spam bond of at least {int(min_bond)} wei.")
+
         c.whistleblower = gl.message.sender_address
         c.evidence_url = clean_url
+        c.reporter_bond = bond_sent
         c.status = u8(1)  # IN_AUDIT
-        c.reason = "Leak report filed. On-chain AI jury investigating unauthorized disclosure."
+        c.audit_started_at = self._get_current_timestamp()
+        c.reason = "Leak report filed with staked bond. AI jury investigating disclosure."
 
     @gl.public.write
     def adjudicate_leak(self, case_id: str) -> None:
@@ -132,10 +167,10 @@ class Contract(gl.Contract):
 
             if fetch_error or not raw_evidence or len(raw_evidence.strip()) == 0:
                 return {
-                    "verdict": "NO_BREACH",
+                    "verdict": "FETCH_FAILED",
                     "confidence": 100,
                     "leak_severity": 0,
-                    "reason": "Could not access or render leak evidence URL. Content missing or 404."
+                    "reason": "Could not access or render leak evidence URL. Content missing, 404, or blocked."
                 }
 
             # Truncate content to respect GenVM context limits
@@ -144,7 +179,7 @@ class Contract(gl.Contract):
             prompt = f"""You are the Chief Magistrate of the AgentNDA Confidentiality Court on GenLayer.
 Evaluate whether the submitted public evidence proves an unauthorized breach of confidential information under the NDA.
 
-PROTECTED NDA SCOPE & CANARY IDENTIFIERS:
+PROTECTED NDA SCOPE AND CANARY IDENTIFIERS:
 {scope_text}
 
 EXTRACTED PUBLIC EVIDENCE:
@@ -243,22 +278,33 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         c.leak_severity = leak_severity
 
         bounty_val = c.bounty_amount
+        bond_val = c.reporter_bond
+        c.reporter_bond = bigint(0)
 
         if verdict == "BREACH_CONFIRMED":
             c.status = u8(2)  # BREACH_CONFIRMED
             self.total_bounty_locked = self.total_bounty_locked - bounty_val
             self.total_breaches_settled = self.total_breaches_settled + u32(1)
-            # Whistleblower reward payout via emit_transfer
-            gl.get_contract_at(c.whistleblower).emit_transfer(value=u256(bounty_val))
+            # Reward whistleblower: Payout bounty + refund their anti-spam bond
+            total_reward = bounty_val + bond_val
+            gl.get_contract_at(c.whistleblower).emit_transfer(value=u256(total_reward))
+        elif verdict == "FETCH_FAILED":
+            # Scraper or network error: Do NOT slash whistleblower! Refund bond and reset case
+            c.status = u8(0)  # Reset to ACTIVE_SECURE
+            if bond_val > bigint(0):
+                gl.get_contract_at(c.whistleblower).emit_transfer(value=u256(bond_val))
         else:
-            # False alarm / no breach: Case resets to ACTIVE_SECURE
-            c.status = u8(0)
+            # Confirmed false alarm / no leak: Slash bond to compensate issuer, reset case
+            c.status = u8(0)  # Reset to ACTIVE_SECURE
             c.verdict = "NO_BREACH"
+            if bond_val > bigint(0):
+                gl.get_contract_at(c.issuer).emit_transfer(value=u256(bond_val))
 
     @gl.public.write
     def close_and_reclaim(self, case_id: str) -> None:
         """
-        Issuer can reclaim escrowed funds when contract terms expire without breach.
+        Issuer can reclaim escrowed funds when contract terms expire without confirmed breach.
+        Includes timeout protection if an audit stalled (> 24 hours).
         """
         if case_id not in self.cases:
             raise gl.UserError(f"Case {case_id} does not exist.")
@@ -267,8 +313,23 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         if gl.message.sender_address != c.issuer:
             raise gl.UserError("Only the NDA issuer can reclaim funds.")
 
-        if c.status != u8(0):
-            raise gl.UserError("Cannot reclaim: Case is currently being adjudicated or already settled.")
+        now = self._get_current_timestamp()
+
+        # Timeout protection: If stuck in audit for > 86400 seconds (24h), allow reclaim and refund bond
+        if c.status == u8(1):
+            if now < (c.audit_started_at + u256(86400)):
+                raise gl.UserError("Cannot reclaim: Case is currently undergoing active jury audit (24h protection).")
+            # Timeout elapsed: refund bond to whistleblower
+            bond_val = c.reporter_bond
+            c.reporter_bond = bigint(0)
+            if bond_val > bigint(0):
+                gl.get_contract_at(c.whistleblower).emit_transfer(value=u256(bond_val))
+        elif c.status == u8(0):
+            # Normal expiry check
+            if now < c.expires_at_timestamp:
+                raise gl.UserError("Cannot reclaim: Protected NDA confidentiality duration has not yet expired.")
+        else:
+            raise gl.UserError("Case is already settled or reclaimed.")
 
         c.status = u8(3)  # SECURE_EXPIRED
         c.verdict = "SECURE_EXPIRED"
@@ -277,6 +338,7 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         bounty_val = c.bounty_amount
         self.total_bounty_locked = self.total_bounty_locked - bounty_val
 
+        # Refund bounty to issuer
         gl.get_contract_at(c.issuer).emit_transfer(value=u256(bounty_val))
 
     # --- Read-only Views ---
@@ -293,6 +355,7 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
             "issuer": _addr_str(c.issuer),
             "whistleblower": _addr_str(c.whistleblower),
             "bounty_amount": str(c.bounty_amount),
+            "reporter_bond": str(c.reporter_bond),
             "nda_scope": c.nda_scope,
             "evidence_url": c.evidence_url,
             "status": int(c.status),
@@ -300,7 +363,8 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
             "reason": c.reason,
             "confidence": int(c.confidence),
             "leak_severity": int(c.leak_severity),
-            "created_at_block": str(c.created_at_block),
+            "created_at_timestamp": str(c.created_at_timestamp),
+            "expires_at_timestamp": str(c.expires_at_timestamp),
         }
         return json.dumps(data)
 
@@ -315,8 +379,38 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         return self.case_ids[idx]
 
     @gl.public.view
+    def get_cases_paginated(self, offset: int, limit: int) -> str:
+        """Safely paginates cases to avoid GenVM out-of-memory errors."""
+        total = len(self.case_ids)
+        if offset < 0 or offset >= total or limit <= 0:
+            return json.dumps([])
+
+        end = min(offset + limit, total)
+        cases_list = []
+        for i in range(offset, end):
+            cid = self.case_ids[i]
+            c = self.cases[cid]
+            cases_list.append({
+                "case_id": c.case_id,
+                "issuer": _addr_str(c.issuer),
+                "whistleblower": _addr_str(c.whistleblower),
+                "bounty_amount": str(c.bounty_amount),
+                "reporter_bond": str(c.reporter_bond),
+                "nda_scope": c.nda_scope,
+                "evidence_url": c.evidence_url,
+                "status": int(c.status),
+                "verdict": c.verdict,
+                "reason": c.reason,
+                "confidence": int(c.confidence),
+                "leak_severity": int(c.leak_severity),
+                "created_at_timestamp": str(c.created_at_timestamp),
+                "expires_at_timestamp": str(c.expires_at_timestamp),
+            })
+        return json.dumps(cases_list)
+
+    @gl.public.view
     def get_all_cases(self) -> str:
-        """Returns JSON serialized array of all NDA cases for instant frontend hydration."""
+        """Returns JSON serialized array of all NDA cases for backward compatibility."""
         cases_list = []
         for cid in self.case_ids:
             c = self.cases[cid]
@@ -325,6 +419,7 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
                 "issuer": _addr_str(c.issuer),
                 "whistleblower": _addr_str(c.whistleblower),
                 "bounty_amount": str(c.bounty_amount),
+                "reporter_bond": str(c.reporter_bond),
                 "nda_scope": c.nda_scope,
                 "evidence_url": c.evidence_url,
                 "status": int(c.status),
@@ -332,7 +427,8 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
                 "reason": c.reason,
                 "confidence": int(c.confidence),
                 "leak_severity": int(c.leak_severity),
-                "created_at_block": str(c.created_at_block),
+                "created_at_timestamp": str(c.created_at_timestamp),
+                "expires_at_timestamp": str(c.expires_at_timestamp),
             })
         return json.dumps(cases_list)
 

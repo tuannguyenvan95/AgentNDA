@@ -83,14 +83,17 @@ export interface NDACaseData {
   issuer: string;
   whistleblower: string;
   bounty_amount: string;
+  reporter_bond?: string;
   nda_scope: string;
   evidence_url: string;
   status: number; // 0: ACTIVE_SECURE, 1: IN_AUDIT, 2: BREACH_CONFIRMED, 3: SECURE_EXPIRED
-  verdict: string; // "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "SECURE_EXPIRED"
+  verdict: string; // "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "FETCH_FAILED", "SECURE_EXPIRED"
   reason: string;
   confidence: number;
   leak_severity: number;
-  created_at_block: string;
+  created_at_timestamp?: string;
+  expires_at_timestamp?: string;
+  created_at_block?: string;
 }
 
 export interface ProtocolStats {
@@ -296,7 +299,8 @@ export async function registerNdaEscrowOnChain(
   contractAddress: string,
   userAddress: string,
   ndaScope: string,
-  bountyWei: bigint
+  bountyWei: bigint,
+  durationSeconds: number = 604800
 ): Promise<string> {
   await ensureStudionet();
   const client = getGenLayerClient(userAddress);
@@ -304,7 +308,7 @@ export async function registerNdaEscrowOnChain(
   const txHash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'register_nda_escrow',
-    args: [ndaScope.trim()],
+    args: [ndaScope.trim(), durationSeconds],
     value: bountyWei,
   });
 
@@ -313,13 +317,14 @@ export async function registerNdaEscrowOnChain(
 }
 
 /**
- * Submit leak report with public evidence URL (Whistleblower)
+ * Submit leak report with public evidence URL (Whistleblower) staking anti-spam bond
  */
 export async function reportLeakOnChain(
   contractAddress: string,
   userAddress: string,
   caseId: string,
-  evidenceUrl: string
+  evidenceUrl: string,
+  bondWei: bigint = 0n
 ): Promise<string> {
   await ensureStudionet();
   const client = getGenLayerClient(userAddress);
@@ -328,7 +333,7 @@ export async function reportLeakOnChain(
     address: contractAddress as `0x${string}`,
     functionName: 'report_leak',
     args: [caseId, evidenceUrl.trim()],
-    value: 0n,
+    value: bondWei,
   });
 
   await client.waitForTransactionReceipt({ hash: txHash });

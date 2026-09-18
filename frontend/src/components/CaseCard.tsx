@@ -69,40 +69,65 @@ export const CaseCard: React.FC<CaseCardProps> = ({
         </div>
 
         {/* Financial & Verdict Summary Ledger */}
-        <div className="mt-4 grid grid-cols-3 gap-2 p-3 bg-[#F9F8F6] border border-[#E5E5E0] rounded-lg text-xs">
-          <div>
-            <span className="text-[10px] uppercase font-semibold text-[#6B7280] block tracking-wider">
-              Bounty Bond
-            </span>
-            <span className="font-serif font-bold text-base text-[#111827]">
-              {formatGen(caseItem.bounty_amount)}
-              <span className="text-[10px] font-mono ml-1 text-[#4B5563]">GEN</span>
-            </span>
+        <div className="mt-4 p-3 bg-[#F9F8F6] border border-[#E5E5E0] rounded-lg text-xs space-y-2">
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-[#6B7280] block tracking-wider">
+                Bounty Bond
+              </span>
+              <span className="font-serif font-bold text-base text-[#111827]">
+                {formatGen(caseItem.bounty_amount)}
+                <span className="text-[10px] font-mono ml-1 text-[#4B5563]">GEN</span>
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-[#6B7280] block tracking-wider">
+                Whistleblower
+              </span>
+              <span className="font-mono font-medium text-[#374151] text-xs truncate block mt-0.5">
+                {formatAddress(caseItem.whistleblower)}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-[#6B7280] block tracking-wider">
+                Verdict Status
+              </span>
+              <span
+                className={`font-mono font-bold text-xs block mt-0.5 ${
+                  caseItem.verdict === 'BREACH_CONFIRMED'
+                    ? 'text-[#B91C1C]'
+                    : caseItem.verdict === 'NO_BREACH'
+                    ? 'text-[#15803D]'
+                    : 'text-[#6B7280]'
+                }`}
+              >
+                {caseItem.verdict}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] uppercase font-semibold text-[#6B7280] block tracking-wider">
-              Whistleblower
-            </span>
-            <span className="font-mono font-medium text-[#374151] text-xs truncate block mt-0.5">
-              {formatAddress(caseItem.whistleblower)}
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] uppercase font-semibold text-[#6B7280] block tracking-wider">
-              Verdict Status
-            </span>
-            <span
-              className={`font-mono font-bold text-xs block mt-0.5 ${
-                caseItem.verdict === 'BREACH_CONFIRMED'
-                  ? 'text-[#B91C1C]'
-                  : caseItem.verdict === 'NO_BREACH'
-                  ? 'text-[#15803D]'
-                  : 'text-[#6B7280]'
-              }`}
-            >
-              {caseItem.verdict}
-            </span>
-          </div>
+
+          {/* Time-Lock & Bond Details */}
+          {(caseItem.expires_at_timestamp || (caseItem.reporter_bond && BigInt(caseItem.reporter_bond) > 0n)) && (
+            <div className="pt-2 border-t border-[#E5E5E0] text-[10px] text-[#6B7280] font-mono flex flex-wrap items-center justify-between gap-1">
+              {caseItem.expires_at_timestamp && Number(caseItem.expires_at_timestamp) > 0 && (
+                <span>
+                  Expires:{' '}
+                  <strong className="text-[#111827]">
+                    {new Date(Number(caseItem.expires_at_timestamp) * 1000).toLocaleDateString()}{' '}
+                    {new Date(Number(caseItem.expires_at_timestamp) * 1000).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </strong>
+                </span>
+              )}
+              {caseItem.reporter_bond && BigInt(caseItem.reporter_bond) > 0n && (
+                <span className="text-[#B45309] font-semibold bg-[#FEF3C7] px-1.5 py-0.5 rounded border border-[#FDE68A]">
+                  Anti-Spam Bond: {formatGen(caseItem.reporter_bond)} GEN
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Protected Scope Snippet */}

@@ -51,6 +51,9 @@ export const ReportLeak: React.FC<ReportLeakProps> = ({
 
   if (!caseData) return null;
 
+  const bountyWei = BigInt(caseData.bounty_amount || '0');
+  const minBondWei = bountyWei / 20n > 0n ? bountyWei / 20n : 1n;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!account) {
@@ -67,11 +70,11 @@ export const ReportLeak: React.FC<ReportLeakProps> = ({
     setIsSubmitting(true);
     onTxStart(
       'Submitting Whistleblower Evidence',
-      `Filing leak URL for Docket ${caseData.case_id}. Bồi thẩm đoàn AI will convene on Studionet.`
+      `Filing leak URL for Docket ${caseData.case_id} with ${formatGen(minBondWei.toString())} GEN anti-spam bond. AI jury will convene on Studionet.`
     );
 
     try {
-      await reportLeakOnChain(contractAddress, account, caseData.case_id, evidenceUrl);
+      await reportLeakOnChain(contractAddress, account, caseData.case_id, evidenceUrl, minBondWei);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -180,11 +183,22 @@ export const ReportLeak: React.FC<ReportLeakProps> = ({
             </div>
           )}
 
+          {/* Anti-spam Deposit Info */}
+          <div className="p-3 rounded-md bg-[#FFFBEB] border border-[#FDE68A] text-xs text-[#92400E] space-y-1">
+            <div className="flex items-center justify-between font-bold">
+              <span>Anti-Spam Security Bond (Required):</span>
+              <span className="font-mono text-[#B45309]">{formatGen(minBondWei.toString())} GEN (5%)</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-[#78350F]">
+              Staked by reporter to prevent spam DoS attacks. <strong>100% refunded</strong> upon breach confirmation or render error. Slashed to issuer only on confirmed false alarms.
+            </p>
+          </div>
+
           <div className="p-3 rounded-md bg-[#F0FDF4] border border-[#86EFAC] text-xs text-[#166534] flex items-start gap-2">
             <ShieldCheck className="w-4 h-4 text-[#15803D] flex-shrink-0 mt-0.5" />
             <span>
               <strong>Bounty Guarantee:</strong> Upon confirmed breach consensus, the smart contract
-              autonomously transfers 100% of the bounty to your wallet (
+              autonomously transfers 100% of the bounty ({formatGen(caseData.bounty_amount)} GEN) + full bond refund to your wallet (
               <span className="font-mono font-bold">{formatAddress(account || '')}</span>).
             </span>
           </div>
