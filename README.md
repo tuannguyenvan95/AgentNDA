@@ -8,6 +8,7 @@
 - 🌐 **Live Web3 dApp:** [https://agentnda.vercel.app](https://agentnda.vercel.app)
 - 🐙 **GitHub Repository:** [https://github.com/tuannguyenvan95/AgentNDA](https://github.com/tuannguyenvan95/AgentNDA)
 - ⚙️ **GenLayer Network:** Studionet (Chain ID: `61999` / `0xF22F`, RPC: `https://studio.genlayer.com/api`)
+- 📜 **Deployed Contract:** [`0x816c2421ae6B4Bf23bbA5f4e0b9320c97271290a`](https://explorer-studio.genlayer.com/address/0x816c2421ae6B4Bf23bbA5f4e0b9320c97271290a)
 
 > **One-Liner (Form Ready — 109 chars):**  
 > Autonomous Web3 leak adjudication and whistleblower escrow powered by GenLayer decentralized AI consensus.
@@ -159,6 +160,7 @@ Các ca kiểm thử bao gồm:
 ## 📝 7. Thông tin Nộp bài Portal & Explorer (Submission Specifications)
 
 - **Project Name:** AgentNDA
+- **Contract Address:** `0x816c2421ae6B4Bf23bbA5f4e0b9320c97271290a`
 - **Primary Category:** `Dispute Resolution` *(Hoặc `Governance`)*
 - **Category Tag 1:** `Evidence Assessment` *(Contract nhận URL bằng chứng web và đối chiếu với điều khoản bí mật)*
 - **Category Tag 2:** `Escrow Claims` *(Khóa quỹ bảo chứng có điều kiện giải ngân tự động)*
