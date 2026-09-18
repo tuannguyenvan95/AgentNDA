@@ -8,7 +8,6 @@ import {
   AlertCircle,
   Copy,
   Check,
-  Scale,
 } from 'lucide-react';
 import { STUDIONET_CHAIN_ID, STUDIONET_RPC_URL, STUDIO_URL } from '../config/genlayer';
 import { formatAddress } from '../utils/helpers';
@@ -82,9 +81,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Logo & Headline Title */}
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-lg bg-[#111827] text-white flex items-center justify-center shadow-sm flex-shrink-0">
-              <Scale className="w-6 h-6 text-[#F9F8F6]" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="AgentNDA Emblem"
+              className="w-12 h-12 rounded-lg object-contain border border-[#E5E5E0] shadow-xs flex-shrink-0 bg-[#FFFFFF]"
+            />
             <div>
               <div className="flex items-baseline gap-2.5">
                 <h1 className="font-serif font-black text-2xl sm:text-3xl tracking-tight text-[#111827]">
