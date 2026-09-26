@@ -60,17 +60,23 @@ class Contract(gl.Contract):
 
     def _get_current_timestamp(self) -> u256:
         """Derive execution timestamp strictly from GenLayer transaction context."""
-        if hasattr(gl, "message_raw") and isinstance(gl.message_raw, dict):
-            dt_raw = gl.message_raw.get("datetime", None)
-            if dt_raw:
-                try:
-                    from datetime import datetime
-                    dt = datetime.fromisoformat(str(dt_raw).replace("Z", "+00:00"))
-                    ts = int(dt.timestamp())
-                    if ts > 0:
-                        return u256(ts)
-                except Exception:
-                    pass
+        try:
+            from datetime import datetime
+            dt_str = None
+            if hasattr(gl, "message") and hasattr(gl.message, "datetime") and gl.message.datetime:
+                dt_str = str(gl.message.datetime)
+            elif hasattr(gl, "message_raw") and isinstance(gl.message_raw, dict):
+                dt_str = str(gl.message_raw.get("datetime", ""))
+
+            if dt_str:
+                if dt_str.endswith("Z"):
+                    dt_str = dt_str[:-1] + "+00:00"
+                dt = datetime.fromisoformat(dt_str)
+                ts = int(dt.timestamp())
+                if ts > 0:
+                    return u256(ts)
+        except Exception:
+            pass
         return u256(0)
 
     @gl.public.write.payable
@@ -88,18 +94,18 @@ class Contract(gl.Contract):
         """
         bounty = bigint(gl.message.value)
         if bounty <= bigint(0):
-            raise gl.UserError("NDA escrow bounty must be greater than 0 GEN.")
+            raise ValueError("NDA escrow bounty must be greater than 0 GEN.")
 
         if not public_nda_topic or len(public_nda_topic.strip()) == 0:
-            raise gl.UserError("Public NDA topic summary cannot be empty.")
+            raise ValueError("Public NDA topic summary cannot be empty.")
 
         clean_identifier = party_identifier.strip()
         if len(clean_identifier) == 0:
-            raise gl.UserError("NDA party identifier (e.g. GitHub handle, domain, or identity) cannot be empty.")
+            raise ValueError("NDA party identifier (e.g. GitHub handle, domain, or identity) cannot be empty.")
 
         clean_commitment = canary_commitment.strip().lower()
         if len(clean_commitment) != 64:
-            raise gl.UserError("Canary commitment must be a valid 64-character SHA-256 hexadecimal hash.")
+            raise ValueError("Canary commitment must be a valid 64-character SHA-256 hexadecimal hash.")
 
         duration = u256(duration_seconds if duration_seconds > 0 else 604800)
 
@@ -146,24 +152,24 @@ class Contract(gl.Contract):
         the secret canary was never published on-chain.
         """
         if case_id not in self.cases:
-            raise gl.UserError(f"Case {case_id} does not exist.")
+            raise ValueError(f"Case {case_id} does not exist.")
 
         c = self.cases[case_id]
         if c.status != u8(0):
-            raise gl.UserError(f"Case {case_id} is not in ACTIVE_SECURE status.")
+            raise ValueError(f"Case {case_id} is not in ACTIVE_SECURE status.")
 
         clean_url = evidence_url.strip()
         if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
-            raise gl.UserError("Valid public leak evidence URL (http/https) is required.")
+            raise ValueError("Valid public leak evidence URL (http/https) is required.")
 
         clean_canary = discovered_canary.strip()
         if len(clean_canary) < 6:
-            raise gl.UserError("Discovered canary token must be at least 6 characters.")
+            raise ValueError("Discovered canary token must be at least 6 characters.")
 
         # Cryptographic Proof-of-Discovery verification on-chain:
         computed_hash = hashlib.sha256(clean_canary.encode("utf-8")).hexdigest().lower()
         if computed_hash != c.canary_commitment.lower():
-            raise gl.UserError(
+            raise ValueError(
                 "Canary token does not match the non-public commitment! "
                 "Manufactured leak or incorrect canary token rejected."
             )
@@ -175,7 +181,7 @@ class Contract(gl.Contract):
 
         bond_sent = bigint(gl.message.value)
         if bond_sent < min_bond:
-            raise gl.UserError(f"Whistleblower must stake anti-spam bond of at least {int(min_bond)} wei.")
+            raise ValueError(f"Whistleblower must stake anti-spam bond of at least {int(min_bond)} wei.")
 
         c.whistleblower = gl.message.sender_address
         c.evidence_url = clean_url
@@ -195,11 +201,11 @@ class Contract(gl.Contract):
         evaluates verifiable provenance and attribution to the bound NDA party, and reaches consensus.
         """
         if case_id not in self.cases:
-            raise gl.UserError(f"Case {case_id} does not exist.")
+            raise ValueError(f"Case {case_id} does not exist.")
 
         c = self.cases[case_id]
         if c.status != u8(1):
-            raise gl.UserError(f"Case {case_id} is not awaiting leak adjudication.")
+            raise ValueError(f"Case {case_id} is not awaiting leak adjudication.")
 
         evidence_url = c.evidence_url
         topic_text = c.public_nda_topic
@@ -372,37 +378,26 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         Includes timeout protection if an audit stalled (> 24 hours).
         """
         if case_id not in self.cases:
-            raise gl.UserError(f"Case {case_id} does not exist.")
+            raise ValueError(f"Case {case_id} does not exist.")
 
         c = self.cases[case_id]
         if gl.message.sender_address != c.issuer:
-            raise gl.UserError("Only the NDA issuer can reclaim funds.")
+            raise ValueError("Only the NDA issuer can reclaim funds.")
 
         now = self._get_current_timestamp()
 
-        # Enforce time-lock when real execution timestamp is available from GenLayer context
-        if now > u256(0) and c.expires_at_timestamp > u256(0):
-            if c.status == u8(1):
-                if now < (c.audit_started_at + u256(86400)):
-                    raise gl.UserError("Cannot reclaim: Case is currently undergoing active jury audit (24h protection).")
-                bond_val = c.reporter_bond
-                c.reporter_bond = bigint(0)
-                if bond_val > bigint(0):
-                    gl.get_contract_at(c.whistleblower).emit_transfer(value=u256(bond_val))
-            elif c.status == u8(0):
-                if now < c.expires_at_timestamp:
-                    raise gl.UserError("Cannot reclaim: Protected NDA confidentiality duration has not yet expired.")
-            else:
-                raise gl.UserError("Case is already settled or reclaimed.")
+        if c.status == u8(1):
+            if now > u256(0) and c.audit_started_at > u256(0) and now < (c.audit_started_at + u256(86400)):
+                raise ValueError("Cannot reclaim: Case is currently undergoing active jury audit (24h protection).")
+            bond_val = c.reporter_bond
+            c.reporter_bond = bigint(0)
+            if bond_val > bigint(0):
+                gl.get_contract_at(c.whistleblower).emit_transfer(value=u256(bond_val))
+        elif c.status == u8(0):
+            if now > u256(0) and c.expires_at_timestamp > u256(0) and now < c.expires_at_timestamp:
+                raise ValueError("Cannot reclaim: Protected NDA confidentiality duration has not yet expired.")
         else:
-            # Fallback for mock/simulation environments where datetime is absent:
-            if c.status == u8(1):
-                bond_val = c.reporter_bond
-                c.reporter_bond = bigint(0)
-                if bond_val > bigint(0):
-                    gl.get_contract_at(c.whistleblower).emit_transfer(value=u256(bond_val))
-            elif c.status != u8(0):
-                raise gl.UserError("Case is already settled or reclaimed.")
+            raise ValueError("Case is already settled or reclaimed.")
 
         c.status = u8(3)  # SECURE_EXPIRED
         c.verdict = "SECURE_EXPIRED"
@@ -420,7 +415,7 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
     def get_case(self, case_id: str) -> str:
         """Returns JSON serialized representation of an NDA case."""
         if case_id not in self.cases:
-            raise gl.UserError(f"Case {case_id} does not exist.")
+            raise ValueError(f"Case {case_id} does not exist.")
 
         c = self.cases[case_id]
         data = {
@@ -452,7 +447,7 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
     @gl.public.view
     def get_case_id_by_index(self, idx: int) -> str:
         if idx < 0 or idx >= len(self.case_ids):
-            raise gl.UserError("Index out of bounds.")
+            raise IndexError("Index out of bounds.")
         return self.case_ids[idx]
 
     @gl.public.view
