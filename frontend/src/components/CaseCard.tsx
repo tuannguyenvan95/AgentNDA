@@ -8,6 +8,9 @@ import {
   FileText,
   AlertTriangle,
   Scale,
+  ShieldCheck,
+  Key,
+  UserCheck,
 } from 'lucide-react';
 import { NDACaseData } from '../config/genlayer';
 import { formatAddress, formatGen, getStatusMeta } from '../utils/helpers';
@@ -37,6 +40,9 @@ export const CaseCard: React.FC<CaseCardProps> = ({
   const isIssuer =
     account && caseItem.issuer && account.toLowerCase() === caseItem.issuer.toLowerCase();
 
+  const isBoundParty =
+    account && caseItem.nda_party && account.toLowerCase() === caseItem.nda_party.toLowerCase();
+
   return (
     <div className="editorial-card rounded-xl p-5 sm:p-6 flex flex-col justify-between transition hover:shadow-press-md">
       <div>
@@ -52,9 +58,14 @@ export const CaseCard: React.FC<CaseCardProps> = ({
                   YOUR DOCKET
                 </span>
               )}
+              {isBoundParty && (
+                <span className="press-tag press-tag-amber text-[9px]">
+                  BOUND PARTY
+                </span>
+              )}
             </div>
             <h3 className="font-serif font-bold text-xl text-[#111827] mt-0.5 leading-snug">
-              Protected Escrow Agreement
+              Autonomous Escrow Agreement
             </h3>
             <p className="text-[11px] text-[#6B7280] font-mono mt-0.5">
               Issuer: {formatAddress(caseItem.issuer)}
@@ -106,9 +117,35 @@ export const CaseCard: React.FC<CaseCardProps> = ({
             </div>
           </div>
 
+          {/* Bound NDA Counterparty Ledger */}
+          {(caseItem.nda_party || caseItem.party_identifier) && (
+            <div className="pt-2 border-t border-[#E5E5E0] text-[11px] font-mono flex items-center justify-between text-[#374151]">
+              <span className="flex items-center gap-1 text-[#6B7280]">
+                <UserCheck className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span>Bound Counterparty:</span>
+              </span>
+              <span className="font-semibold text-[#111827]">
+                {caseItem.party_identifier || formatAddress(caseItem.nda_party)}
+              </span>
+            </div>
+          )}
+
+          {/* Non-Public Canary Hash Commitment */}
+          {caseItem.canary_commitment && (
+            <div className="pt-1.5 border-t border-[#E5E5E0] text-[10px] font-mono flex items-center justify-between text-[#6B7280]">
+              <span className="flex items-center gap-1 text-[#15803D]">
+                <ShieldCheck className="w-3 h-3 text-[#15803D]" />
+                <span>Canary Commitment:</span>
+              </span>
+              <span className="text-[#4B5563] truncate max-w-[200px]" title={caseItem.canary_commitment}>
+                {caseItem.canary_commitment.slice(0, 10)}...{caseItem.canary_commitment.slice(-8)}
+              </span>
+            </div>
+          )}
+
           {/* Time-Lock & Bond Details */}
           {(caseItem.expires_at_timestamp || (caseItem.reporter_bond && BigInt(caseItem.reporter_bond) > 0n)) && (
-            <div className="pt-2 border-t border-[#E5E5E0] text-[10px] text-[#6B7280] font-mono flex flex-wrap items-center justify-between gap-1">
+            <div className="pt-1.5 border-t border-[#E5E5E0] text-[10px] text-[#6B7280] font-mono flex flex-wrap items-center justify-between gap-1">
               {caseItem.expires_at_timestamp && Number(caseItem.expires_at_timestamp) > 0 && (
                 <span>
                   Expires:{' '}
@@ -130,12 +167,12 @@ export const CaseCard: React.FC<CaseCardProps> = ({
           )}
         </div>
 
-        {/* Protected Scope Snippet */}
+        {/* Protected Subject Matter Snippet */}
         <div className="mt-4 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-[#111827] flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-[#6B7280]" />
-              <span>Protected Trade Secret Scope:</span>
+              <span>Protected NDA Subject Matter:</span>
             </span>
             <button
               onClick={() => setExpanded(!expanded)}
@@ -150,9 +187,27 @@ export const CaseCard: React.FC<CaseCardProps> = ({
               expanded ? '' : 'line-clamp-3'
             }`}
           >
-            {caseItem.nda_scope}
+            {caseItem.public_nda_topic || caseItem.nda_scope}
           </div>
         </div>
+
+        {/* Discovered Canary Proof (if reported) */}
+        {caseItem.discovered_canary && (
+          <div className="mt-3 p-2.5 bg-[#F0FDF4] border border-[#86EFAC] rounded-md text-xs">
+            <div className="flex items-center justify-between font-semibold text-[#166534] text-[11px]">
+              <span className="flex items-center gap-1">
+                <Key className="w-3.5 h-3.5 text-[#15803D]" />
+                Cryptographic Proof-of-Discovery Verified:
+              </span>
+              <span className="text-[10px] bg-[#DCFCE7] px-1.5 py-0.5 rounded border border-[#BBF7D0] text-[#15803D]">
+                MATCH CONFIRMED
+              </span>
+            </div>
+            <div className="mt-1 font-mono text-[11px] text-[#14532D] break-all font-bold">
+              {caseItem.discovered_canary}
+            </div>
+          </div>
+        )}
 
         {/* Evidence Link Section (if reported) */}
         {caseItem.evidence_url && (

@@ -48,6 +48,14 @@ export function parseGen(genStr: string): bigint {
   return whole * 1000000000000000000n + fraction;
 }
 
+export async function computeSha256(message: string): Promise<string> {
+  const clean = message.trim();
+  const msgBuffer = new TextEncoder().encode(clean);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export interface StatusMeta {
   label: string;
   badgeClass: string;

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Lock, Sparkles, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import { parseGen } from '../utils/helpers';
+import React, { useState, useEffect } from 'react';
+import { Lock, Sparkles, ArrowRight, Loader2, AlertCircle, Key, Copy, Check, ShieldCheck, RefreshCw } from 'lucide-react';
+import { parseGen, computeSha256 } from '../utils/helpers';
 import { registerNdaEscrowOnChain } from '../config/genlayer';
 
 interface RegisterNDAProps {
@@ -13,32 +13,28 @@ interface RegisterNDAProps {
 
 const PRESET_TEMPLATES = [
   {
-    name: 'Unreleased Token TGE & Valuation',
+    name: 'Unreleased Token TGE & Private Valuation',
     bounty: '5.0',
-    scope: `CONFIDENTIAL PROJECT EMBARGO:
-1. Token Launch (TGE) target date: October 28, 2026.
-2. Initial FDV target: $120,000,000.
-3. Private seed tier discount: 45%.
-4. CANARY PHRASE: CANARY_PHRASE_PROJECT_OMEGA_SEC_KEY_998.
-Any public posting, blog, or tweet disclosing these exact terms or the canary identifier constitutes a material breach.`,
+    topic: 'Confidential Token Launch Embargo (October 28, 2026 Target, $120M FDV, Seed Discount terms).',
+    party: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+    identifier: '@seed_advisor_firm',
+    canary: 'CANARY_TGE_OMEGA_FDV_120M_KEY_77492',
   },
   {
-    name: 'Proprietary Zero-Knowledge Circuit',
+    name: 'Proprietary Zero-Knowledge Circuit Specs',
     bounty: '10.0',
-    scope: `PROPRIETARY ZK-ROLLUP CIRCUIT SPECS:
-1. Unannounced recursive SNARK folding scheme based on Plonky3 modifications.
-2. Internal benchmark proving time: 420ms per batch.
-3. CANARY PHRASE: ZK_CIRCUIT_INTERNAL_ALPHA_CANARY_771.
-Public release of benchmark logs or source snippets prior to mainnet launch is strictly prohibited.`,
+    topic: 'Confidential recursive SNARK folding scheme benchmarking logs and modified Plonky3 logic.',
+    party: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+    identifier: 'github.com/zk-audit-partner',
+    canary: 'CANARY_ZK_CIRCUIT_INTERNAL_ALPHA_SEC_9921',
   },
   {
-    name: 'M&A Acquisition Terms',
+    name: 'M&A Acquisition Terms & Consideration',
     bounty: '20.0',
-    scope: `CONFIDENTIAL M&A DISCLOSURE:
-1. Pending acquisition of Autonomous Agent Labs by Protocol Core.
-2. Agreed all-cash purchase consideration: $15.5M.
-3. CANARY PHRASE: MNA_ACQUISITION_CANARY_TOKEN_VAL_443.
-Early leak of negotiation memorandums or deal structure warrants full bounty forfeiture.`,
+    topic: 'M&A Acquisition Memorandums, $15.5M cash consideration and agent lab IP transfer.',
+    party: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+    identifier: 'autonomousagentlabs.eth',
+    canary: 'CANARY_MNA_ACQUISITION_DEAL_MEMO_88412',
   },
 ];
 
@@ -51,13 +47,44 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
 }) => {
   const [bountyAmount, setBountyAmount] = useState('5.0');
   const [durationDays, setDurationDays] = useState('7');
-  const [ndaScope, setNdaScope] = useState(PRESET_TEMPLATES[0].scope);
+  const [publicTopic, setPublicTopic] = useState(PRESET_TEMPLATES[0].topic);
+  const [ndaParty, setNdaParty] = useState(PRESET_TEMPLATES[0].party);
+  const [partyIdentifier, setPartyIdentifier] = useState(PRESET_TEMPLATES[0].identifier);
+  const [secretCanary, setSecretCanary] = useState(PRESET_TEMPLATES[0].canary);
+  const [canaryHash, setCanaryHash] = useState('');
+  const [copiedCanary, setCopiedCanary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Compute SHA-256 commitment hash whenever secretCanary changes
+  useEffect(() => {
+    if (secretCanary.trim()) {
+      computeSha256(secretCanary.trim()).then(setCanaryHash);
+    } else {
+      setCanaryHash('');
+    }
+  }, [secretCanary]);
+
+  const handleGenerateCanary = () => {
+    const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+    setSecretCanary(`CANARY_SEC_${randomHex}`);
+  };
+
+  const handleCopyCanary = () => {
+    navigator.clipboard.writeText(secretCanary);
+    setCopiedCanary(true);
+    setTimeout(() => setCopiedCanary(false), 2000);
+  };
+
   const handleSelectPreset = (preset: typeof PRESET_TEMPLATES[0]) => {
     setBountyAmount(preset.bounty);
-    setNdaScope(preset.scope);
+    setPublicTopic(preset.topic);
+    setNdaParty(preset.party);
+    setPartyIdentifier(preset.identifier);
+    setSecretCanary(preset.canary);
     setErrorMsg(null);
   };
 
@@ -74,22 +101,47 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
       return;
     }
 
-    if (!ndaScope.trim()) {
-      setErrorMsg('Confidential NDA scope definition cannot be empty.');
+    if (!publicTopic.trim()) {
+      setErrorMsg('Public NDA topic description cannot be empty.');
       return;
     }
 
+    if (!ndaParty.trim() || !ndaParty.trim().startsWith('0x') || ndaParty.trim().length !== 42) {
+      setErrorMsg('Valid bound counterparty address (0x...) is required.');
+      return;
+    }
+
+    if (!partyIdentifier.trim()) {
+      setErrorMsg('Counterparty identifier (e.g. GitHub handle, domain, or handle) is required.');
+      return;
+    }
+
+    if (!secretCanary.trim() || secretCanary.trim().length < 6) {
+      setErrorMsg('Secret canary token must be at least 6 characters.');
+      return;
+    }
+
+    const commitment = await computeSha256(secretCanary.trim());
     const durationSeconds = Math.max(86400, parseInt(durationDays, 10) * 86400);
 
     setErrorMsg(null);
     setIsSubmitting(true);
     onTxStart(
-      'Registering Escrow Docket',
-      `Locking ${bountyAmount} GEN into on-chain escrow bond for ${durationDays} days and indexing canary parameters.`
+      'Registering Protected Escrow Docket',
+      `Locking ${bountyAmount} GEN into escrow with non-public canary commitment for bound party ${partyIdentifier}.`
     );
 
     try {
-      await registerNdaEscrowOnChain(contractAddress, account, ndaScope, wei, durationSeconds);
+      await registerNdaEscrowOnChain(
+        contractAddress,
+        account,
+        publicTopic,
+        ndaParty,
+        partyIdentifier,
+        commitment,
+        wei,
+        durationSeconds
+      );
       onSuccess();
     } catch (err: any) {
       console.error('Error registering NDA escrow:', err);
@@ -110,15 +162,15 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
               <span className="press-tag press-tag-neutral text-[10px]">
                 ISSUER ENTRY DISPATCH
               </span>
-              <span className="text-xs font-mono text-[#6B7280]">ESCROW REGISTRY</span>
+              <span className="text-xs font-mono text-[#6B7280]">NON-PUBLIC COMMITMENT ESCROW</span>
             </div>
             <h2 className="font-serif font-bold text-2xl sm:text-3xl text-[#111827] tracking-tight">
-              Register Confidential Scope & Escrow Bond
+              Register Autonomous NDA Escrow Docket
             </h2>
             <p className="mt-1.5 text-xs sm:text-sm text-[#4B5563] leading-relaxed">
-              Deposit native GEN into the autonomous GenLayer court. Specify confidential clauses
-              and canary tokens. Whistleblowers who prove unauthorized disclosure on the public web
-              will be awarded this bounty upon decentralized AI consensus.
+              Deposit native GEN into the autonomous GenLayer court. Only a cryptographic hash commitment
+              of your canary secret is anchored on-chain. Counterparty attribution and verifiable provenance
+              guarantee that reporters cannot manufacture fake leaks.
             </p>
           </div>
           <div className="hidden sm:flex w-10 h-10 rounded-lg bg-[#F9F8F6] border border-[#E5E5E0] items-center justify-center text-[#111827]">
@@ -144,7 +196,7 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
                   {preset.name}
                 </div>
                 <div className="text-[11px] text-[#6B7280] mt-1 font-mono">
-                  {preset.bounty} GEN Bond
+                  {preset.bounty} GEN · {preset.identifier}
                 </div>
               </button>
             ))}
@@ -201,26 +253,110 @@ export const RegisterNDA: React.FC<RegisterNDAProps> = ({
             </div>
           </div>
 
-          {/* Scope Definition */}
+          {/* Bound NDA Counterparty Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#111827] uppercase tracking-wider">
+                <span>Bound Counterparty Address</span>
+              </label>
+              <input
+                type="text"
+                value={ndaParty}
+                onChange={(e) => setNdaParty(e.target.value)}
+                placeholder="0x..."
+                required
+                className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition"
+              />
+              <p className="text-[10px] text-[#6B7280]">The partner/contractor wallet bound to this agreement.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#111827] uppercase tracking-wider">
+                <span>Party Provenance Identifier</span>
+              </label>
+              <input
+                type="text"
+                value={partyIdentifier}
+                onChange={(e) => setPartyIdentifier(e.target.value)}
+                placeholder="e.g. github.com/partner-org, @dev_handle"
+                required
+                className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition"
+              />
+              <p className="text-[10px] text-[#6B7280]">Used by AI Jury to authenticate leak provenance.</p>
+            </div>
+          </div>
+
+          {/* Public Topic Summary */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center justify-between">
-              <span>Protected NDA Criteria & Canary Identifiers</span>
+              <span>Public NDA Subject Matter (No Confidential Secrets)</span>
               <span className="text-[11px] font-sans font-normal text-[#6B7280]">
-                Scrutinized by GenLayer AI Validators
+                Visible On-Chain
               </span>
             </label>
-            <textarea
-              rows={6}
-              value={ndaScope}
-              onChange={(e) => setNdaScope(e.target.value)}
-              placeholder="State the secret facts, parameters, and insert canary identifiers..."
+            <input
+              type="text"
+              value={publicTopic}
+              onChange={(e) => setPublicTopic(e.target.value)}
+              placeholder="e.g. Q3 Strategic AI Architecture & Weight Checksums"
               required
-              className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition resize-y leading-relaxed"
+              className="w-full px-3.5 py-2.5 bg-[#F9F8F6] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] placeholder-[#9CA3AF] focus:outline-none focus:border-[#111827] focus:bg-[#FFFFFF] transition"
             />
-            <p className="text-[11px] text-[#6B7280]">
-              💡 <strong>Gazette Advice:</strong> Provide exact canary tokens (e.g. <code>CANARY_PHRASE_PROJECT_OMEGA_SEC_KEY_998</code>).
-              Validators execute semantic comparison to verify whether the canary or specific secrets appear in reported web links.
-            </p>
+          </div>
+
+          {/* Secret Canary Token & Non-Public Commitment */}
+          <div className="space-y-2 p-4 rounded-lg bg-[#F9F8F6] border border-[#E5E5E0]">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-[#B45309]" />
+                <span>Secret Canary Token (Kept Strictly Confidential)</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateCanary}
+                  className="text-[11px] font-medium text-[#4B5563] hover:text-[#111827] flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Generate New</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyCanary}
+                  className="text-[11px] font-medium text-[#15803D] hover:text-[#166534] flex items-center gap-1 cursor-pointer"
+                >
+                  {copiedCanary ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedCanary ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+
+            <input
+              type="text"
+              value={secretCanary}
+              onChange={(e) => setSecretCanary(e.target.value)}
+              placeholder="CANARY_SECRET_..."
+              required
+              className="w-full px-3.5 py-2.5 bg-[#FFFFFF] border border-[#E5E5E0] rounded-md text-xs font-mono text-[#111827] focus:outline-none focus:border-[#111827] transition"
+            />
+
+            {/* Cryptographic Hash Commitment Display */}
+            {canaryHash && (
+              <div className="pt-2 text-[11px] font-mono text-[#4B5563] space-y-1">
+                <div className="flex items-center gap-1 text-[#15803D] font-bold text-[10px] uppercase tracking-wider">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>On-Chain SHA-256 Non-Public Commitment (Anchored on GenLayer):</span>
+                </div>
+                <div className="p-2 bg-[#FFFFFF] rounded border border-[#E5E5E0] text-[10px] break-all text-[#374151]">
+                  {canaryHash}
+                </div>
+                <p className="text-[10px] text-[#6B7280]">
+                  🔒 <strong>Reviewer Guarantee:</strong> The plain text canary is NEVER stored on-chain.
+                  Embed this secret canary phrase into the confidential deliverables handed to the counterparty.
+                  Reporters cannot manufacture a leak because they cannot reverse the hash.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Error Banner */}

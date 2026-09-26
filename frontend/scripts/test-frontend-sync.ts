@@ -7,10 +7,14 @@
 export interface NDACaseData {
   case_id: string;
   issuer: string;
+  nda_party: string;
+  party_identifier: string;
   whistleblower: string;
   bounty_amount: string;
   reporter_bond?: string;
-  nda_scope: string;
+  public_nda_topic: string;
+  canary_commitment: string;
+  discovered_canary?: string;
   evidence_url: string;
   status: number; // 0: ACTIVE_SECURE, 1: IN_AUDIT, 2: BREACH_CONFIRMED, 3: SECURE_EXPIRED
   verdict: string; // "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "FETCH_FAILED", "SECURE_EXPIRED"
@@ -62,14 +66,18 @@ const mockCases: NDACaseData[] = [
   {
     case_id: 'nda-1',
     issuer: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    nda_party: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+    party_identifier: 'github.com/vendor-ai',
     whistleblower: '0x0000000000000000000000000000000000000000',
     bounty_amount: '10000000000000000000', // 10 GEN
     reporter_bond: '0',
-    nda_scope: 'Proprietary AI Weight Compression Algorithm v4. Canary: CANARY_ALPHA_COMPRESS_7781',
+    public_nda_topic: 'Proprietary AI Weight Compression Algorithm v4',
+    canary_commitment: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    discovered_canary: '',
     evidence_url: '',
     status: 0, // ACTIVE_SECURE
     verdict: 'PENDING',
-    reason: 'NDA active. Awaiting leak evidence or contract expiration.',
+    reason: 'NDA active. Bound party registered with non-public cryptographic canary commitment.',
     confidence: 0,
     leak_severity: 0,
     created_at_timestamp: '1770000000',
@@ -78,14 +86,18 @@ const mockCases: NDACaseData[] = [
   {
     case_id: 'nda-2',
     issuer: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+    nda_party: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+    party_identifier: '@trading_fund_advisor',
     whistleblower: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
     bounty_amount: '5000000000000000000', // 5 GEN
     reporter_bond: '250000000000000000', // 0.25 GEN (5%)
-    nda_scope: 'Internal financial models and trading alpha keys.',
+    public_nda_topic: 'Internal financial models and trading alpha keys',
+    canary_commitment: 'a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef',
+    discovered_canary: 'CANARY_TRADING_ALPHA_SEC_9912',
     evidence_url: 'https://pastebin.com/raw/leaked_financials',
     status: 1, // IN_AUDIT
     verdict: 'PENDING',
-    reason: 'Leak report filed with staked bond. AI jury investigating disclosure.',
+    reason: 'Leak report filed with verified canary. AI investigating @trading_fund_advisor.',
     confidence: 0,
     leak_severity: 0,
     created_at_timestamp: '1770000100',
@@ -94,14 +106,18 @@ const mockCases: NDACaseData[] = [
   {
     case_id: 'nda-3',
     issuer: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    nda_party: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+    party_identifier: 'zk-audit-labs.eth',
     whistleblower: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
     bounty_amount: '8000000000000000000', // 8 GEN
     reporter_bond: '0',
-    nda_scope: 'Confidential zero-knowledge prover architecture.',
+    public_nda_topic: 'Confidential zero-knowledge prover architecture',
+    canary_commitment: 'b2c3d4e5f6a178901234567890abcdef1234567890abcdef1234567890abcdef',
+    discovered_canary: 'CANARY_ZK_PROVER_INTERNAL_SEC_1102',
     evidence_url: 'https://github.com/public-mirror/zk-leak',
     status: 2, // BREACH_CONFIRMED
     verdict: 'BREACH_CONFIRMED',
-    reason: 'Semantic analysis confirmed verified leak of private circuit logic.',
+    reason: 'Semantic analysis confirmed verified leak of private circuit logic tied to zk-audit-labs.eth.',
     confidence: 97,
     leak_severity: 94,
     created_at_timestamp: '1770000200',
@@ -110,10 +126,14 @@ const mockCases: NDACaseData[] = [
   {
     case_id: 'nda-4',
     issuer: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
+    nda_party: '0x9965507D1a55bcC2695C58ba16FB37d819B0A4df',
+    party_identifier: 'tier1-exchange-team',
     whistleblower: '0x9965507D1a55bcC2695C58ba16FB37d819B0A4df',
     bounty_amount: '3000000000000000000', // 3 GEN
     reporter_bond: '0',
-    nda_scope: 'Partnership discussions with Tier 1 exchanges.',
+    public_nda_topic: 'Partnership discussions with Tier 1 exchanges',
+    canary_commitment: 'c3d4e5f6a1b278901234567890abcdef1234567890abcdef1234567890abcdef',
+    discovered_canary: 'CANARY_EXCHANGE_DISCUSSIONS_SEC_0019',
     evidence_url: 'https://twitter.com/fake_rumors/12345',
     status: 0, // CLEARED / NO_BREACH (resets to 0 after bond slash)
     verdict: 'NO_BREACH',
@@ -126,10 +146,14 @@ const mockCases: NDACaseData[] = [
   {
     case_id: 'nda-5',
     issuer: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    nda_party: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
+    party_identifier: 'marketing-agency.eth',
     whistleblower: '0x0000000000000000000000000000000000000000',
     bounty_amount: '2000000000000000000', // 2 GEN
     reporter_bond: '0',
-    nda_scope: 'Expiring marketing campaign secrets.',
+    public_nda_topic: 'Expiring marketing campaign secrets',
+    canary_commitment: 'd4e5f6a1b2c378901234567890abcdef1234567890abcdef1234567890abcdef',
+    discovered_canary: '',
     evidence_url: '',
     status: 3, // SECURE_EXPIRED
     verdict: 'SECURE_EXPIRED',
@@ -199,6 +223,7 @@ assert(mockCases[1].evidence_url.length > 0, 'Case 2 renders public evidence ins
 assert(mockCases[2].status === 2, 'Case 3 displays "Inspect Court Verdict" button');
 assert(mockCases[2].leak_severity === 94, 'Case 3 provides high severity score to BreachJuryModal');
 assert(mockCases[2].confidence === 97, 'Case 3 provides confidence metric to BreachJuryModal');
+assert(mockCases[2].party_identifier === 'zk-audit-labs.eth', 'Case 3 links to bound party identity');
 
 // Case 4 (CLEARED / NO_BREACH)
 assert(mockCases[3].verdict === 'NO_BREACH', 'Case 4 displays "Inspect Court Verdict" for clearance ledger');
@@ -209,9 +234,12 @@ console.log(cyan('\n[Test Section 4: Tab Filtering & Query Search Synchronizatio
 
 function filterCases(items: NDACaseData[], filter: string, query: string) {
   return items.filter((c) => {
+    const topic = (c.public_nda_topic || '').toLowerCase();
+    const party = (c.party_identifier || '').toLowerCase();
     const matchesQuery =
       c.case_id.toLowerCase().includes(query.toLowerCase()) ||
-      c.nda_scope.toLowerCase().includes(query.toLowerCase()) ||
+      topic.includes(query.toLowerCase()) ||
+      party.includes(query.toLowerCase()) ||
       c.issuer.toLowerCase().includes(query.toLowerCase());
 
     if (!matchesQuery) return false;
@@ -242,8 +270,11 @@ assert(settledList.length === 2, 'Filter "settled" returns 2 settled dockets');
 assert(settledList.map((c) => c.case_id).sort().join(',') === 'nda-3,nda-5', 'Settled dockets are nda-3 and nda-5');
 
 // Search query matching
-const canarySearch = filterCases(mockCases, 'all', 'CANARY_ALPHA_COMPRESS_7781');
-assert(canarySearch.length === 1 && canarySearch[0].case_id === 'nda-1', 'Search finds canary token accurately');
+const topicSearch = filterCases(mockCases, 'all', 'Weight Compression');
+assert(topicSearch.length === 1 && topicSearch[0].case_id === 'nda-1', 'Search finds topic accurately');
+
+const partySearch = filterCases(mockCases, 'all', 'zk-audit-labs');
+assert(partySearch.length === 1 && partySearch[0].case_id === 'nda-3', 'Search by bound party identifier accurately');
 
 const issuerSearch = filterCases(mockCases, 'all', '0xf39F');
 assert(issuerSearch.length === 3, 'Search by issuer prefix matches 3 dockets');

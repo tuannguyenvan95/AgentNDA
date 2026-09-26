@@ -87,10 +87,15 @@ export async function fetchStudionetBalance(address: string): Promise<string> {
 export interface NDACaseData {
   case_id: string;
   issuer: string;
+  nda_party: string;
+  party_identifier: string;
   whistleblower: string;
   bounty_amount: string;
   reporter_bond?: string;
-  nda_scope: string;
+  public_nda_topic: string;
+  canary_commitment: string;
+  discovered_canary?: string;
+  nda_scope?: string; // Legacy fallback
   evidence_url: string;
   status: number; // 0: ACTIVE_SECURE, 1: IN_AUDIT, 2: BREACH_CONFIRMED, 3: SECURE_EXPIRED
   verdict: string; // "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "FETCH_FAILED", "SECURE_EXPIRED"
@@ -299,12 +304,15 @@ export async function fetchCase(contractAddress: string, caseId: string): Promis
 }
 
 /**
- * Register NDA escrow and lock native GEN bounty
+ * Register NDA escrow and lock native GEN bounty with non-public commitment and counterparty attribution
  */
 export async function registerNdaEscrowOnChain(
   contractAddress: string,
   userAddress: string,
-  ndaScope: string,
+  publicNdaTopic: string,
+  ndaParty: string,
+  partyIdentifier: string,
+  canaryCommitment: string,
   bountyWei: bigint,
   durationSeconds: number = 604800
 ): Promise<string> {
@@ -314,7 +322,13 @@ export async function registerNdaEscrowOnChain(
   const txHash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'register_nda_escrow',
-    args: [ndaScope.trim(), durationSeconds],
+    args: [
+      publicNdaTopic.trim(),
+      ndaParty.trim(),
+      partyIdentifier.trim(),
+      canaryCommitment.trim().toLowerCase(),
+      durationSeconds,
+    ],
     value: bountyWei,
   });
 
@@ -323,13 +337,14 @@ export async function registerNdaEscrowOnChain(
 }
 
 /**
- * Submit leak report with public evidence URL (Whistleblower) staking anti-spam bond
+ * Submit leak report with public evidence URL & discovered canary token (Whistleblower) staking anti-spam bond
  */
 export async function reportLeakOnChain(
   contractAddress: string,
   userAddress: string,
   caseId: string,
   evidenceUrl: string,
+  discoveredCanary: string,
   bondWei: bigint = 0n
 ): Promise<string> {
   await ensureStudionet();
@@ -338,7 +353,7 @@ export async function reportLeakOnChain(
   const txHash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'report_leak',
-    args: [caseId, evidenceUrl.trim()],
+    args: [caseId, evidenceUrl.trim(), discoveredCanary.trim()],
     value: bondWei,
   });
 

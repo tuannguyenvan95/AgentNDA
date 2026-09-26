@@ -225,9 +225,12 @@ export const App: React.FC = () => {
 
   // Filtered cases
   const filteredCases = cases.filter((c) => {
+    const topic = (c.public_nda_topic || c.nda_scope || '').toLowerCase();
+    const party = (c.party_identifier || c.nda_party || '').toLowerCase();
     const matchesQuery =
       c.case_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.nda_scope.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      topic.includes(searchQuery.toLowerCase()) ||
+      party.includes(searchQuery.toLowerCase()) ||
       c.issuer.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (!matchesQuery) return false;

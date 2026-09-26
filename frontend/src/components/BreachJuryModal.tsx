@@ -7,10 +7,12 @@ import {
   FileText,
   Lock,
   Scale,
-  Cpu,
+  ShieldCheck,
+  UserCheck,
+  Key,
 } from 'lucide-react';
 import { NDACaseData } from '../config/genlayer';
-import { formatAddress, formatGen, getExplorerUrl } from '../utils/helpers';
+import { formatAddress, formatGen } from '../utils/helpers';
 
 interface BreachJuryModalProps {
   caseData: NDACaseData | null;
@@ -66,7 +68,7 @@ export const BreachJuryModal: React.FC<BreachJuryModalProps> = ({ caseData, onCl
               On-Chain AI Jury Adjudication Gazette
             </h3>
             <p className="text-xs text-[#4B5563]">
-              Official consensus judgment rendered by decentralized GenLayer LLM validator court.
+              Official consensus judgment rendered by decentralized GenLayer LLM validator court with verifiable provenance.
             </p>
           </div>
         </div>
@@ -101,7 +103,15 @@ export const BreachJuryModal: React.FC<BreachJuryModalProps> = ({ caseData, onCl
               Exposure Severity
             </span>
             <div className="flex items-baseline gap-1">
-              <span className={`font-serif font-bold text-2xl ${caseData.leak_severity >= 70 ? 'text-[#B91C1C]' : 'text-[#111827]'}`}>
+              <span
+                className={`font-serif font-bold text-2xl ${
+                  caseData.leak_severity >= 70
+                    ? 'text-[#B91C1C]'
+                    : caseData.leak_severity >= 40
+                    ? 'text-[#B45309]'
+                    : 'text-[#15803D]'
+                }`}
+              >
                 {caseData.leak_severity}
               </span>
               <span className="text-xs text-[#6B7280]">/ 100</span>
@@ -109,14 +119,18 @@ export const BreachJuryModal: React.FC<BreachJuryModalProps> = ({ caseData, onCl
             <div className="w-full bg-[#E5E5E0] rounded-full h-1.5 mt-1.5 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  caseData.leak_severity >= 70 ? 'bg-[#B91C1C]' : 'bg-[#15803D]'
+                  caseData.leak_severity >= 70
+                    ? 'bg-[#B91C1C]'
+                    : caseData.leak_severity >= 40
+                    ? 'bg-[#F59E0B]'
+                    : 'bg-[#15803D]'
                 }`}
                 style={{ width: `${Math.min(100, Math.max(0, caseData.leak_severity))}%` }}
               />
             </div>
           </div>
 
-          {/* Validator Confidence */}
+          {/* Confidence Metric */}
           <div className="p-3.5 rounded-lg bg-[#F9F8F6] border border-[#E5E5E0] space-y-1">
             <span className="text-[10px] uppercase font-bold text-[#6B7280] tracking-wider block">
               Validator Confidence
@@ -136,6 +150,41 @@ export const BreachJuryModal: React.FC<BreachJuryModalProps> = ({ caseData, onCl
           </div>
         </div>
 
+        {/* Bound Party Attribution & Cryptographic Commitment Verification */}
+        <div className="p-3.5 rounded-lg bg-[#F9F8F6] border border-[#E5E5E0] text-xs space-y-2">
+          <div className="font-bold text-[#111827] flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#15803D]" />
+            <span>Cryptographic Proof-of-Discovery & Party Attribution:</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
+            <div className="p-2 bg-[#FFFFFF] rounded border border-[#E5E5E0] space-y-0.5">
+              <span className="text-[#6B7280] text-[10px] uppercase block">Bound NDA Counterparty:</span>
+              <span className="font-semibold text-[#111827] flex items-center gap-1">
+                <UserCheck className="w-3 h-3 text-[#2563EB]" />
+                {caseData.party_identifier || formatAddress(caseData.nda_party)}
+              </span>
+            </div>
+
+            <div className="p-2 bg-[#FFFFFF] rounded border border-[#E5E5E0] space-y-0.5">
+              <span className="text-[#6B7280] text-[10px] uppercase block">Canary Commitment (SHA-256):</span>
+              <span className="text-[#4B5563] text-[10px] truncate block" title={caseData.canary_commitment}>
+                {caseData.canary_commitment ? `${caseData.canary_commitment.slice(0, 14)}...${caseData.canary_commitment.slice(-8)}` : 'On-chain commitment verified'}
+              </span>
+            </div>
+          </div>
+
+          {caseData.discovered_canary && (
+            <div className="p-2 bg-[#F0FDF4] rounded border border-[#86EFAC] text-[11px] font-mono text-[#166534] flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Key className="w-3 h-3 text-[#15803D]" />
+                <span>Verified Discovered Canary:</span>
+              </span>
+              <span className="font-bold">{caseData.discovered_canary}</span>
+            </div>
+          )}
+        </div>
+
         {/* Detailed Jury Rationale */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center gap-1.5">
@@ -147,16 +196,16 @@ export const BreachJuryModal: React.FC<BreachJuryModalProps> = ({ caseData, onCl
           </div>
         </div>
 
-        {/* Protected Scope & Evidence Comparison */}
+        {/* Protected Subject Matter & Evidence Comparison */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          {/* Left: Protected Criteria */}
+          {/* Left: Protected Subject Matter */}
           <div className="p-3.5 rounded-lg bg-[#FFFFFF] border border-[#E5E5E0] space-y-1.5">
             <span className="font-bold text-[#111827] flex items-center gap-1">
               <Lock className="w-3.5 h-3.5 text-[#6B7280]" />
-              <span>Protected NDA Criteria:</span>
+              <span>Protected Subject Matter:</span>
             </span>
             <div className="p-2.5 bg-[#F9F8F6] rounded border border-[#E5E5E0] font-mono text-[11px] text-[#374151] max-h-32 overflow-y-auto whitespace-pre-wrap">
-              {caseData.nda_scope}
+              {caseData.public_nda_topic || caseData.nda_scope}
             </div>
           </div>
 
@@ -180,41 +229,31 @@ export const BreachJuryModal: React.FC<BreachJuryModalProps> = ({ caseData, onCl
                 No evidence URL on record.
               </div>
             )}
-            <div className="text-[11px] text-[#6B7280] pt-1">
-              Whistleblower: <span className="font-mono text-[#111827] font-semibold">{formatAddress(caseData.whistleblower)}</span> • Bounty: <span className="font-mono text-[#15803D] font-bold">{formatGen(caseData.bounty_amount)} GEN</span>
+          </div>
+        </div>
+
+        {/* Payout Summary if Confirmed */}
+        {isConfirmed && (
+          <div className="p-3.5 rounded-lg bg-[#F0FDF4] border border-[#86EFAC] text-xs text-[#166534] flex items-center justify-between">
+            <div>
+              <span className="font-bold block text-sm">Autonomous Whistleblower Payout Settled</span>
+              <span className="text-[11px] text-[#15803D]">
+                Transferred to: {formatAddress(caseData.whistleblower)}
+              </span>
             </div>
+            <span className="font-serif font-bold text-lg text-[#15803D]">
+              +{formatGen(caseData.bounty_amount)} GEN
+            </span>
           </div>
-        </div>
+        )}
 
-        {/* GenLayer Architectural Note */}
-        <div className="p-3.5 rounded-lg bg-[#F5F4F0] border border-[#E5E5E0] text-xs text-[#374151] space-y-1">
-          <div className="font-bold text-[#111827] flex items-center gap-1.5">
-            <Cpu className="w-3.5 h-3.5 text-[#111827]" />
-            <span>GenLayer Architectural Principle (Semantic Non-Determinism)</span>
-          </div>
-          <p className="text-[11px] text-[#4B5563] leading-relaxed">
-            EVM contracts cannot read the public internet. AgentNDA executed <code>gl.nondet.web.render</code> on
-            the submitted link directly on-chain, and independent validator LLMs converged on the legal verdict via <code>gl.vm.run_nondet</code> without trusting any centralized oracle.
-          </p>
-        </div>
-
-        {/* Footer */}
-        <div className="pt-2 border-t border-[#E5E5E0] flex items-center justify-between">
-          <a
-            href={getExplorerUrl(caseData.case_id, 'tx')}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-[#4B5563] hover:text-[#111827] flex items-center gap-1.5 transition font-medium"
-          >
-            <span>View on GenLayer Explorer</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-
+        {/* Footer CTA */}
+        <div className="pt-2 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-md bg-[#111827] hover:bg-[#1F2937] text-xs font-bold text-white transition cursor-pointer"
+            className="px-5 py-2 rounded-md bg-[#111827] hover:bg-[#1F2937] text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer"
           >
-            Close Gazette Record
+            Dismiss Ledger
           </button>
         </div>
       </div>

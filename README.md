@@ -165,19 +165,19 @@ Các ca kiểm thử bao gồm:
 - **Category Tag 1:** `Evidence Assessment` *(Contract nhận URL bằng chứng web và đối chiếu với điều khoản bí mật)*
 - **Category Tag 2:** `Escrow Claims` *(Khóa quỹ bảo chứng có điều kiện giải ngân tự động)*
 - **Deployment Status:** `Preview` *(Theo quy định của GenLayer: deploy trên Studionet = Preview, testnet = Live)*
-- **One-liner (109 ký tự / Giới hạn 180):**
+- **One-liner (116 ký tự / Giới hạn 180):**
   ```text
-  Autonomous Web3 leak adjudication and whistleblower escrow powered by GenLayer decentralized AI consensus.
+  Autonomous Web3 leak adjudication & escrow using non-public canary commitments and GenLayer decentralized AI consensus.
   ```
-- **Description (788 ký tự / Giới hạn 1000):**
+- **Description (946 ký tự / Giới hạn 1000):**
   ```text
-  AgentNDA provides autonomous leak adjudication and whistleblower escrow for the agentic economy. Traditional paper NDAs are completely unenforceable among anonymous Web3 actors, and legacy smart contracts cannot read the public web.
+  AgentNDA provides autonomous leak adjudication and whistleblower bounty escrow for the agentic Web3 economy. Traditional paper NDAs are unenforceable among anonymous actors, while public smart contracts allow malicious reporters to manufacture leaks using on-chain criteria.
 
-  AgentNDA enables organizations to lock native GEN bounty pools specifying confidential criteria and canary tokens. When leaks surface on Twitter/X, Pastebin, or technical blogs, whistleblowers report the URL on-chain. GenLayer validators execute gl.nondet.web.render to extract live evidence without centralized oracles, assess material disclosure via decentralized LLM consensus, and settle verdicts (BREACH_CONFIRMED vs NO_BREACH). Proven breaches automatically pay out bounties to whistleblowers; expired safe periods refund the issuer.
+  AgentNDA solves this via non-public cryptographic commitments: Issuers lock GEN bounties registering a bound NDA counterparty and a SHA-256 canary commitment (the secret is never exposed on-chain). When leaks emerge on public repos, archives, or blogs, whistleblowers report the URL with proof-of-discovery (the discovered canary token, verified on-chain). GenLayer AI validators scrape live evidence via gl.nondet.web.render, verify provenance, party attribution, and material canary exposure through decentralized consensus (BREACH_CONFIRMED vs NO_BREACH). Proven breaches pay out bounties autonomously; expired terms refund the issuer.
   ```
-- **Expected Verification Outcome (432 ký tự / Giới hạn 500):**
+- **Expected Verification Outcome (477 ký tự / Giới hạn 500):**
   ```text
-  Reviewer connects MetaMask on Studionet, selects an active NDA case, and reports a leak URL. Triggering "AI Jury Adjudication" convenes GenLayer validators to scrape the link and evaluate the canary terms on-chain. The case status advances to BREACH_CONFIRMED with an AI rationale and severity score, autonomously transferring the GEN bounty to the whistleblower's wallet, with all actions verifiable on the GenLayer Explorer.
+  Reviewer selects an active NDA docket with bound counterparty and on-chain canary commitment. Reviewer submits leak URL with discovered canary token. Smart contract verifies hash commitment on-chain. Convening AI Jury triggers GenLayer validators to scrape live evidence, verify canary presence, and assess party attribution. Consensus settles BREACH_CONFIRMED, autonomously transferring bounty + bond to whistleblower with all proofs inspectable on GenLayer Explorer.
   ```
 
 ---
