@@ -7,7 +7,7 @@ export const STUDIONET_CHAIN_ID_HEX = '0xf22f'; // 61999 in hex is 0xF22F
 export const STUDIONET_RPC_URL = 'https://studio.genlayer.com/api';
 export const STUDIO_URL = 'https://studio.genlayer.com';
 
-export const DEFAULT_CONTRACT_ADDRESS = '0x55c44CA1Cd9C39B2Dc1d424569A1ab642D0E6Fd6';
+export const DEFAULT_CONTRACT_ADDRESS = '0x35c5619827Ea80D3137b4E35167bb4889795ad93';
 
 // Persistent contract address handling
 export function getSavedContractAddress(): string {
@@ -19,7 +19,8 @@ export function getSavedContractAddress(): string {
         // Auto-upgrade if browser has old test contract cached
         if (
           clean.toLowerCase() === '0x125b6c27feb943a4b8bfa2e2499645229f3458f6' ||
-          clean.toLowerCase() === '0x816c2421ae6b4bf23bba5f4e0b9320c97271290a'
+          clean.toLowerCase() === '0x816c2421ae6b4bf23bba5f4e0b9320c97271290a' ||
+          clean.toLowerCase() === '0x55c44ca1cd9c39b2dc1d424569a1ab642d0e6fd6'
         ) {
           localStorage.setItem('agentnda_contract_address', DEFAULT_CONTRACT_ADDRESS);
           return DEFAULT_CONTRACT_ADDRESS;
