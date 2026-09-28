@@ -7,7 +7,7 @@ export const STUDIONET_CHAIN_ID_HEX = '0xf22f'; // 61999 in hex is 0xF22F
 export const STUDIONET_RPC_URL = 'https://studio.genlayer.com/api';
 export const STUDIO_URL = 'https://studio.genlayer.com';
 
-export const DEFAULT_CONTRACT_ADDRESS = '0xB344dE6Be22fC20f116CfA86DE6F7e443c91BdB7';
+export const DEFAULT_CONTRACT_ADDRESS = '0xC508460e5e8D032495B4c051776963f0C0c7fF17';
 
 // Persistent contract address handling
 export function getSavedContractAddress(): string {
