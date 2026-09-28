@@ -143,7 +143,7 @@ class Contract(gl.Contract):
         if len(clean_commitment) != 64:
             raise ValueError("Canary commitment must be a valid 64-character SHA-256 hexadecimal hash.")
 
-        duration = u256(duration_seconds if duration_seconds > 0 else 604800)
+        duration = u256(duration_seconds) if duration_seconds >= 0 else u256(604800)
 
         self.case_counter = self.case_counter + u64(1)
         case_id = self.case_counter

@@ -95,3 +95,65 @@ def test_real_genvm_full_flow_with_storage_compatibility(
     stats_raw = contract.get_stats()
     stats = json.loads(stats_raw)
     assert stats["total_cases"] == 1
+
+
+def test_real_genvm_close_and_reclaim_lifecycle(
+    direct_deploy, direct_vm, direct_alice, direct_bob
+):
+    """
+    Real GenVM Execution Test for close_and_reclaim:
+    1. Register NDA escrow.
+    2. Non-issuer attempt to reclaim reverts with 'Only the NDA issuer can reclaim funds'.
+    3. Issuer reclaims funds safely upon term expiration.
+    4. Second reclaim attempt reverts with 'already settled or reclaimed'.
+    """
+    issuer = direct_alice
+    bound_party = direct_bob
+
+    direct_vm.sender = issuer
+    direct_vm.value = 1000000000000000000  # 1 GEN
+    contract = direct_deploy(str(CONTRACT_PATH))
+
+    import sys
+    Address = sys.modules["genlayer"].Address
+
+    canary_hash = hashlib.sha256(b"SECRET_CANARY_TOKEN").hexdigest()
+    case_id = contract.register_nda_escrow(
+        "Project Orion Security Review",
+        Address(bound_party),
+        "orion-audit-team",
+        canary_hash,
+        3600
+    )
+
+    # 1. Non-issuer attempt to reclaim -> Reverts
+    direct_vm.sender = bound_party
+    with pytest.raises(Exception, match="Only the NDA issuer can reclaim funds"):
+        contract.close_and_reclaim(case_id)
+
+    # 2. Premature reclaim by issuer when duration has not expired -> Reverts
+    direct_vm.sender = issuer
+    with pytest.raises(Exception, match="duration has not yet expired"):
+        contract.close_and_reclaim(case_id)
+
+    # 3. Register case with duration 0 (immediately expired)
+    case_id_exp = contract.register_nda_escrow(
+        "Project Orion Expired Escrow",
+        Address(bound_party),
+        "orion-audit-team",
+        canary_hash,
+        0
+    )
+
+    # 4. Issuer reclaims expired escrow
+    contract.close_and_reclaim(case_id_exp)
+
+    c_raw = contract.get_case(case_id_exp)
+    c_data = json.loads(c_raw)
+    assert c_data["status"] == 3  # SECURE_EXPIRED
+    assert c_data["verdict"] == "SECURE_EXPIRED"
+
+    # 5. Double reclaim -> Reverts
+    with pytest.raises(Exception, match="already settled or reclaimed"):
+        contract.close_and_reclaim(case_id_exp)
+
