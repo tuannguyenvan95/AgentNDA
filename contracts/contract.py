@@ -159,10 +159,19 @@ class Contract(gl.Contract):
             expires_at = u256(0)
         empty_whistleblower = Address("0x0000000000000000000000000000000000000000")
 
+        # Ensure nda_party is an Address instance for GenVM AddrDesc storage compatibility
+        if isinstance(nda_party, str):
+            clean_addr = nda_party.strip()
+            if not clean_addr.startswith("0x") or len(clean_addr) != 42:
+                raise gl.UserError("NDA party must be a valid 42-character hex address (0x...).")
+            bound_nda_party = Address(clean_addr)
+        else:
+            bound_nda_party = nda_party
+
         new_case = NDACase(
             case_id=case_id,
             issuer=gl.message.sender_address,
-            nda_party=nda_party,
+            nda_party=bound_nda_party,
             party_identifier=clean_identifier,
             whistleblower=empty_whistleblower,
             bounty_amount=bounty,
@@ -196,10 +205,11 @@ class Contract(gl.Contract):
         canary_commitment. If a reporter attempts to manufacture a fake page, they will fail because
         the secret canary was never published on-chain.
         """
-        if case_id not in self.cases:
+        cid = u64(int(case_id))
+        if cid not in self.cases:
             raise gl.UserError(f"Case {case_id} does not exist.")
 
-        c = self.cases[case_id]
+        c = self.cases[cid]
         if c.status != u8(0):
             raise gl.UserError(f"Case {case_id} is not in ACTIVE_SECURE status.")
 
@@ -245,10 +255,11 @@ class Contract(gl.Contract):
         AI Jury fetches evidence URL via gl.nondet.web.render, verifies canary presence in web content,
         evaluates verifiable provenance and attribution to the bound NDA party, and reaches consensus.
         """
-        if case_id not in self.cases:
+        cid = u64(int(case_id))
+        if cid not in self.cases:
             raise gl.UserError(f"Case {case_id} does not exist.")
 
-        c = self.cases[case_id]
+        c = self.cases[cid]
         if c.status != u8(1):
             raise gl.UserError(f"Case {case_id} is not awaiting leak adjudication.")
 
@@ -451,10 +462,11 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         Issuer can reclaim escrowed funds when contract terms expire without confirmed breach.
         Includes timeout protection if an audit stalled (> 24 hours).
         """
-        if case_id not in self.cases:
+        cid = u64(int(case_id))
+        if cid not in self.cases:
             raise gl.UserError(f"Case {case_id} does not exist.")
 
-        c = self.cases[case_id]
+        c = self.cases[cid]
         if gl.message.sender_address != c.issuer:
             raise gl.UserError("Only the NDA issuer can reclaim funds.")
 
@@ -488,10 +500,11 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
     @gl.public.view
     def get_case(self, case_id: u64) -> str:
         """Returns JSON serialized representation of an NDA case with canary privacy protection."""
-        if case_id not in self.cases:
+        cid = u64(int(case_id))
+        if cid not in self.cases:
             raise gl.UserError(f"Case {case_id} does not exist.")
 
-        return json.dumps(_format_case_dict(self.cases[case_id]))
+        return json.dumps(_format_case_dict(self.cases[cid]))
 
     @gl.public.view
     def get_case_count(self) -> int:
