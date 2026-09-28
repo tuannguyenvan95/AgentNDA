@@ -87,8 +87,14 @@ export async function fetchStudionetBalance(address: string): Promise<string> {
   return '0.00';
 }
 
+export function parseCaseId(caseId: string | number): number {
+  if (typeof caseId === 'number') return caseId;
+  const num = parseInt(String(caseId).replace(/\D/g, ''), 10);
+  return isNaN(num) ? 1 : num;
+}
+
 export interface NDACaseData {
-  case_id: string;
+  case_id: string | number;
   issuer: string;
   nda_party: string;
   party_identifier: string;
@@ -100,6 +106,7 @@ export interface NDACaseData {
   discovered_canary?: string;
   nda_scope?: string; // Legacy fallback
   evidence_url: string;
+  evidence_hash?: string; // Content snapshot hash
   status: number; // 0: ACTIVE_SECURE, 1: IN_AUDIT, 2: BREACH_CONFIRMED, 3: SECURE_EXPIRED
   verdict: string; // "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "FETCH_FAILED", "SECURE_EXPIRED"
   reason: string;
@@ -291,13 +298,13 @@ export async function fetchAllCases(contractAddress: string): Promise<NDACaseDat
 /**
  * Fetch a single case by ID
  */
-export async function fetchCase(contractAddress: string, caseId: string): Promise<NDACaseData | null> {
+export async function fetchCase(contractAddress: string, caseId: string | number): Promise<NDACaseData | null> {
   try {
     const client = getGenLayerClient();
     const rawCase = await client.readContract({
       address: contractAddress as `0x${string}`,
       functionName: 'get_case',
-      args: [caseId],
+      args: [parseCaseId(caseId)],
     });
     return typeof rawCase === 'string' ? JSON.parse(rawCase) : (rawCase as unknown as NDACaseData);
   } catch (e) {
@@ -345,7 +352,7 @@ export async function registerNdaEscrowOnChain(
 export async function reportLeakOnChain(
   contractAddress: string,
   userAddress: string,
-  caseId: string,
+  caseId: string | number,
   evidenceUrl: string,
   discoveredCanary: string,
   bondWei: bigint = 0n
@@ -356,7 +363,7 @@ export async function reportLeakOnChain(
   const txHash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'report_leak',
-    args: [caseId, evidenceUrl.trim(), discoveredCanary.trim()],
+    args: [parseCaseId(caseId), evidenceUrl.trim(), discoveredCanary.trim()],
     value: bondWei,
   });
 
@@ -370,7 +377,7 @@ export async function reportLeakOnChain(
 export async function adjudicateLeakOnChain(
   contractAddress: string,
   userAddress: string,
-  caseId: string
+  caseId: string | number
 ): Promise<string> {
   await ensureStudionet();
   const client = getGenLayerClient(userAddress);
@@ -378,7 +385,7 @@ export async function adjudicateLeakOnChain(
   const txHash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'adjudicate_leak',
-    args: [caseId],
+    args: [parseCaseId(caseId)],
     value: 0n,
   });
 
@@ -392,7 +399,7 @@ export async function adjudicateLeakOnChain(
 export async function closeAndReclaimOnChain(
   contractAddress: string,
   userAddress: string,
-  caseId: string
+  caseId: string | number
 ): Promise<string> {
   await ensureStudionet();
   const client = getGenLayerClient(userAddress);
@@ -400,7 +407,7 @@ export async function closeAndReclaimOnChain(
   const txHash = await client.writeContract({
     address: contractAddress as `0x${string}`,
     functionName: 'close_and_reclaim',
-    args: [caseId],
+    args: [parseCaseId(caseId)],
     value: 0n,
   });
 

@@ -22,7 +22,7 @@ def test_contract_syntax_and_structure(contract_source):
 def test_case_struct_attributes(contract_source):
     """Ensure NDACase defines all necessary state fields according to spec."""
     expected_fields = [
-        "case_id: str",
+        "case_id: u64",
         "issuer: Address",
         "nda_party: Address",
         "party_identifier: str",
@@ -33,6 +33,7 @@ def test_case_struct_attributes(contract_source):
         "canary_commitment: str",
         "discovered_canary: str",
         "evidence_url: str",
+        "evidence_hash: str",
         "status: u8",
         "verdict: str",
         "reason: str",
@@ -47,10 +48,12 @@ def test_case_struct_attributes(contract_source):
 
 
 def test_semantic_consensus_rule(contract_source):
-    """Ensure validator_fn compares only verdict (Semantic Consensus) rather than byte-for-byte LLM output."""
-    assert 'mine["verdict"] == leader["verdict"]' in contract_source, (
+    """Ensure validator_fn implements equivalence principle with verdict agreement and severity bounds."""
+    assert 'mine["verdict"] != leader["verdict"]' in contract_source or 'mine["verdict"] == leader["verdict"]' in contract_source, (
         "Validator function must implement semantic consensus on verdict"
     )
+    assert 'canary_found' in contract_source, "Validator function must verify canary presence equivalence"
+    assert 'leak_severity' in contract_source, "Validator function must verify severity bounds"
 
 
 def test_native_transfer_calls(contract_source):

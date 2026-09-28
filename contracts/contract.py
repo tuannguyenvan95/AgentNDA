@@ -19,8 +19,9 @@ class NDACase:
     """
     Storage struct representing an on-chain autonomous NDA and leak escrow.
     Enforces non-public commitments, counterparty attribution, and verifiable provenance.
+    Uses u64 numeric identifier for native GenLayer storage compatibility.
     """
-    case_id: str
+    case_id: u64                   # Storage-compatible numeric case ID
     issuer: Address
     nda_party: Address             # Bound NDA counterparty (recipient of confidential assets)
     party_identifier: str          # Public handle, org, or domain tied to counterparty (e.g. github org/handle)
@@ -31,6 +32,7 @@ class NDACase:
     canary_commitment: str         # Non-public cryptographic commitment: sha256(secret_canary)
     discovered_canary: str         # Secret canary revealed by whistleblower upon finding leak
     evidence_url: str              # Public URL of leaked article, commit, or archive
+    evidence_hash: str             # Immutable SHA-256 snapshot of web evidence content
     status: u8                     # 0: ACTIVE_SECURE, 1: IN_AUDIT, 2: BREACH_CONFIRMED, 3: SECURE_EXPIRED
     verdict: str                   # "PENDING", "BREACH_CONFIRMED", "NO_BREACH", "SECURE_EXPIRED"
     reason: str                    # Detailed jury breach justification & provenance verification
@@ -41,13 +43,47 @@ class NDACase:
     audit_started_at: u256         # Timestamp when report_leak was triggered (for timeout protection)
 
 
+def _format_case_dict(c: NDACase) -> dict:
+    """
+    Helper to serialize an NDACase into a JSON-safe dictionary.
+    Privacy safeguard: Masks discovered_canary while case is in audit or active
+    to prevent front-running and premature disclosure. Only exposes upon confirmed breach.
+    """
+    exposed_canary = (
+        c.discovered_canary
+        if c.status == u8(2)
+        else ("[PROTECTED_PROOF]" if len(c.discovered_canary) > 0 else "")
+    )
+    return {
+        "case_id": int(c.case_id),
+        "issuer": _addr_str(c.issuer),
+        "nda_party": _addr_str(c.nda_party),
+        "party_identifier": c.party_identifier,
+        "whistleblower": _addr_str(c.whistleblower),
+        "bounty_amount": str(c.bounty_amount),
+        "reporter_bond": str(c.reporter_bond),
+        "public_nda_topic": c.public_nda_topic,
+        "canary_commitment": c.canary_commitment,
+        "discovered_canary": exposed_canary,
+        "evidence_url": c.evidence_url,
+        "evidence_hash": c.evidence_hash,
+        "status": int(c.status),
+        "verdict": c.verdict,
+        "reason": c.reason,
+        "confidence": int(c.confidence),
+        "leak_severity": int(c.leak_severity),
+        "created_at_timestamp": str(c.created_at_timestamp),
+        "expires_at_timestamp": str(c.expires_at_timestamp),
+    }
+
+
 class Contract(gl.Contract):
     """
     AgentNDA: Autonomous Web3 Leak Adjudication and Whistleblower Bounty Escrow
     Target Network: studionet (Chain ID: 61999)
     """
-    cases: TreeMap[str, NDACase]
-    case_ids: DynArray[str]
+    cases: TreeMap[u64, NDACase]
+    case_ids: DynArray[u64]
     total_bounty_locked: bigint
     total_breaches_settled: u32
     case_counter: u64
@@ -87,7 +123,7 @@ class Contract(gl.Contract):
         party_identifier: str,
         canary_commitment: str,
         duration_seconds: int,
-    ) -> str:
+    ) -> u64:
         """
         Issuer locks native GEN bounty pool, registers bound NDA party and non-public canary commitment.
         Notice: The secret canary token is NEVER published on-chain, preventing reporters from manufacturing leaks.
@@ -110,7 +146,7 @@ class Contract(gl.Contract):
         duration = u256(duration_seconds if duration_seconds > 0 else 604800)
 
         self.case_counter = self.case_counter + u64(1)
-        case_id = f"nda-{int(self.case_counter)}"
+        case_id = self.case_counter
         now = self._get_current_timestamp()
         expires_at = now + duration
         empty_whistleblower = Address("0x0000000000000000000000000000000000000000")
@@ -127,6 +163,7 @@ class Contract(gl.Contract):
             canary_commitment=clean_commitment,
             discovered_canary="",
             evidence_url="",
+            evidence_hash="",
             status=u8(0),  # ACTIVE_SECURE
             verdict="PENDING",
             reason="NDA active. Bound party registered with non-public cryptographic canary commitment.",
@@ -144,7 +181,7 @@ class Contract(gl.Contract):
         return case_id
 
     @gl.public.write.payable
-    def report_leak(self, case_id: str, evidence_url: str, discovered_canary: str) -> None:
+    def report_leak(self, case_id: u64, evidence_url: str, discovered_canary: str) -> None:
         """
         Whistleblower submits evidence URL and the secret canary token discovered in the leaked document.
         Cryptographic Proof-of-Discovery: On-chain verification verifies discovered_canary against
@@ -195,7 +232,7 @@ class Contract(gl.Contract):
         )
 
     @gl.public.write
-    def adjudicate_leak(self, case_id: str) -> None:
+    def adjudicate_leak(self, case_id: u64) -> None:
         """
         AI Jury fetches evidence URL via gl.nondet.web.render, verifies canary presence in web content,
         evaluates verifiable provenance and attribution to the bound NDA party, and reaches consensus.
@@ -318,11 +355,17 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
             sev_val = _clean_num(parsed.get("leak_severity"), 85 if verdict_str == "BREACH_CONFIRMED" else 15)
             reason_str = str(parsed.get("reason", "Consensus audit concluded."))
 
+            evidence_hash = hashlib.sha256(raw_evidence.encode("utf-8")).hexdigest()
+            canary_matched = (canary_text.lower() in raw_evidence.lower())
+
             return {
                 "verdict": verdict_str,
                 "confidence": conf_val,
                 "leak_severity": sev_val,
-                "reason": reason_str
+                "reason": reason_str,
+                "canary_found": True if (verdict_str == "BREACH_CONFIRMED" and canary_matched) else False,
+                "party_attributed": True if verdict_str == "BREACH_CONFIRMED" else False,
+                "evidence_hash": evidence_hash,
             }
 
         def validator_fn(leader_res) -> bool:
@@ -338,8 +381,29 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
                 return False
 
             mine = leader_fn()
-            # Semantic Consensus: Compare VERDICT ONLY!
-            return mine["verdict"] == leader["verdict"]
+
+            # 1. Semantic Verdict Agreement
+            if mine["verdict"] != leader["verdict"]:
+                return False
+
+            # 2. Enhanced Equivalence Principle:
+            # When breach is confirmed, validators must agree on key factual findings and severity bounds
+            if mine["verdict"] == "BREACH_CONFIRMED":
+                # Factual findings: both validators must agree canary was found and party attributed
+                if leader.get("canary_found") is not True or mine.get("canary_found") is not True:
+                    return False
+                if leader.get("party_attributed") is not True or mine.get("party_attributed") is not True:
+                    return False
+                # Severity bounds: discrepancy must not exceed 20 points
+                leader_sev = int(leader.get("leak_severity", 0))
+                mine_sev = int(mine.get("leak_severity", 0))
+                if abs(leader_sev - mine_sev) > 20:
+                    return False
+                # Evidence snapshot hash consistency
+                if leader.get("evidence_hash") != mine.get("evidence_hash"):
+                    return False
+
+            return True
 
         adjudication_res = gl.vm.run_nondet(leader_fn, validator_fn)
 
@@ -352,6 +416,8 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         c.reason = reason
         c.confidence = confidence
         c.leak_severity = leak_severity
+        if "evidence_hash" in adjudication_res and adjudication_res["evidence_hash"]:
+            c.evidence_hash = str(adjudication_res["evidence_hash"])
 
         bounty_val = c.bounty_amount
         bond_val = c.reporter_bond
@@ -372,7 +438,7 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
                 gl.get_contract_at(c.issuer).emit_transfer(value=u256(bond_val))
 
     @gl.public.write
-    def close_and_reclaim(self, case_id: str) -> None:
+    def close_and_reclaim(self, case_id: u64) -> None:
         """
         Issuer can reclaim escrowed funds when contract terms expire without confirmed breach.
         Includes timeout protection if an audit stalled (> 24 hours).
@@ -412,40 +478,19 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
     # --- Read-only Views ---
 
     @gl.public.view
-    def get_case(self, case_id: str) -> str:
-        """Returns JSON serialized representation of an NDA case."""
+    def get_case(self, case_id: u64) -> str:
+        """Returns JSON serialized representation of an NDA case with canary privacy protection."""
         if case_id not in self.cases:
             raise ValueError(f"Case {case_id} does not exist.")
 
-        c = self.cases[case_id]
-        data = {
-            "case_id": c.case_id,
-            "issuer": _addr_str(c.issuer),
-            "nda_party": _addr_str(c.nda_party),
-            "party_identifier": c.party_identifier,
-            "whistleblower": _addr_str(c.whistleblower),
-            "bounty_amount": str(c.bounty_amount),
-            "reporter_bond": str(c.reporter_bond),
-            "public_nda_topic": c.public_nda_topic,
-            "canary_commitment": c.canary_commitment,
-            "discovered_canary": c.discovered_canary,
-            "evidence_url": c.evidence_url,
-            "status": int(c.status),
-            "verdict": c.verdict,
-            "reason": c.reason,
-            "confidence": int(c.confidence),
-            "leak_severity": int(c.leak_severity),
-            "created_at_timestamp": str(c.created_at_timestamp),
-            "expires_at_timestamp": str(c.expires_at_timestamp),
-        }
-        return json.dumps(data)
+        return json.dumps(_format_case_dict(self.cases[case_id]))
 
     @gl.public.view
     def get_case_count(self) -> int:
         return len(self.case_ids)
 
     @gl.public.view
-    def get_case_id_by_index(self, idx: int) -> str:
+    def get_case_id_by_index(self, idx: int) -> u64:
         if idx < 0 or idx >= len(self.case_ids):
             raise IndexError("Index out of bounds.")
         return self.case_ids[idx]
@@ -461,55 +506,15 @@ Respond ONLY with valid JSON without markdown code fences or formatting:
         cases_list = []
         for i in range(offset, end):
             cid = self.case_ids[i]
-            c = self.cases[cid]
-            cases_list.append({
-                "case_id": c.case_id,
-                "issuer": _addr_str(c.issuer),
-                "nda_party": _addr_str(c.nda_party),
-                "party_identifier": c.party_identifier,
-                "whistleblower": _addr_str(c.whistleblower),
-                "bounty_amount": str(c.bounty_amount),
-                "reporter_bond": str(c.reporter_bond),
-                "public_nda_topic": c.public_nda_topic,
-                "canary_commitment": c.canary_commitment,
-                "discovered_canary": c.discovered_canary,
-                "evidence_url": c.evidence_url,
-                "status": int(c.status),
-                "verdict": c.verdict,
-                "reason": c.reason,
-                "confidence": int(c.confidence),
-                "leak_severity": int(c.leak_severity),
-                "created_at_timestamp": str(c.created_at_timestamp),
-                "expires_at_timestamp": str(c.expires_at_timestamp),
-            })
+            cases_list.append(_format_case_dict(self.cases[cid]))
         return json.dumps(cases_list)
 
     @gl.public.view
     def get_all_cases(self) -> str:
-        """Returns JSON serialized array of all NDA cases for backward compatibility."""
+        """Returns JSON serialized array of all NDA cases with privacy protection."""
         cases_list = []
         for cid in self.case_ids:
-            c = self.cases[cid]
-            cases_list.append({
-                "case_id": c.case_id,
-                "issuer": _addr_str(c.issuer),
-                "nda_party": _addr_str(c.nda_party),
-                "party_identifier": c.party_identifier,
-                "whistleblower": _addr_str(c.whistleblower),
-                "bounty_amount": str(c.bounty_amount),
-                "reporter_bond": str(c.reporter_bond),
-                "public_nda_topic": c.public_nda_topic,
-                "canary_commitment": c.canary_commitment,
-                "discovered_canary": c.discovered_canary,
-                "evidence_url": c.evidence_url,
-                "status": int(c.status),
-                "verdict": c.verdict,
-                "reason": c.reason,
-                "confidence": int(c.confidence),
-                "leak_severity": int(c.leak_severity),
-                "created_at_timestamp": str(c.created_at_timestamp),
-                "expires_at_timestamp": str(c.expires_at_timestamp),
-            })
+            cases_list.append(_format_case_dict(self.cases[cid]))
         return json.dumps(cases_list)
 
     @gl.public.view

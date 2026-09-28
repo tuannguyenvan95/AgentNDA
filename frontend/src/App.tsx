@@ -228,7 +228,7 @@ export const App: React.FC = () => {
     const topic = (c.public_nda_topic || c.nda_scope || '').toLowerCase();
     const party = (c.party_identifier || c.nda_party || '').toLowerCase();
     const matchesQuery =
-      c.case_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(c.case_id).toLowerCase().includes(searchQuery.toLowerCase()) ||
       topic.includes(searchQuery.toLowerCase()) ||
       party.includes(searchQuery.toLowerCase()) ||
       c.issuer.toLowerCase().includes(searchQuery.toLowerCase());

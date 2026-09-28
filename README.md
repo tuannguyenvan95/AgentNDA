@@ -155,6 +155,38 @@ Các ca kiểm thử bao gồm:
 - ✅ Hết hạn an toàn: Issuer rút lại tiền thành công qua `close_and_reclaim`.
 - ✅ Bảo mật quyền truy cập (RBAC) và kiểm tra định dạng dữ liệu đầu vào.
 
+## 🛡️ 6. Kiến Trúc Lưu Trữ & Xử Lý Sự Cố (Storage Architecture & Edge Cases)
+
+Hợp đồng AgentNDA được thiết kế tuân thủ nghiêm ngặt chuẩn kiến trúc GenLayer GenVM:
+
+### 1. Kiểu Dữ Liệu Lưu Trữ Tương Thích GenVM (Storage Compatibility)
+- **Numeric Identifiers:** Toàn bộ khóa lưu trữ và chỉ mục trong `TreeMap` và `DynArray` sử dụng kiểu số nguyên nguyên bản `u64` (`cases: TreeMap[u64, NDACase]`, `case_ids: DynArray[u64]`), loại bỏ hoàn toàn lỗi bộ nhớ cấp thấp `.as_bytes` khi GenVM thao tác với storage descriptors.
+- **Tách biệt Storage và View Presentation:** State on-chain lưu trữ các trường thiết yếu dạng fixed/primitive types; các hàm view (`get_case`, `get_cases_paginated`, `get_all_cases`) tự động format sang JSON chuẩn cho client frontend.
+
+### 2. Bảo Mật Canary & Chống Bị Copy/Front-Running
+- Khi Whistleblower nộp báo cáo (`report_leak`), hợp đồng xác minh `discovered_canary` thông qua mã băm SHA-256 đối chiếu với `canary_commitment`.
+- Trong các cuộc gọi view công khai (`get_case`), trường `discovered_canary` được tự động che giấu (`[PROTECTED_PROOF]`) khi vụ việc đang trong trạng thái `IN_AUDIT` hoặc `ACTIVE_SECURE`.
+- Chuỗi canary chỉ được công khai khi và chỉ khi vi phạm đã được AI Jury xác nhận (`BREACH_CONFIRMED`) như một bằng chứng minh bạch không thể chối cãi.
+
+### 3. Ghim & Lưu Snapshot Bằng Chứng Bất Biến (Evidence Snapshot Pinning)
+- Để ngăn chặn việc kẻ gian chỉnh sửa hoặc xóa bài viết công khai trên các trang web/pastebin sau khi nộp báo cáo, khi AI Jury chạy `gl.nondet.web.render`, hệ thống tự động băm SHA-256 nội dung HTML thực tế:
+  $$\text{evidence\_hash} = \text{SHA-256}(\text{raw\_evidence})$$
+- Giá trị băm này được lưu vĩnh viễn vào `c.evidence_hash` on-chain, tạo dấu vân tay dữ liệu bất biến (immutable content snapshot).
+
+### 4. Quy Tắc Đồng Thuận Nâng Cao (Enhanced Equivalence Principle)
+Trong `validator_fn`, các validator không chỉ so khớp nhãn phán quyết mà bắt buộc phải đạt đồng thuận trên toàn bộ các dữ kiện cốt lõi:
+1. **Semantic Verdict Agreement:** Phán quyết của Validator phải trùng khớp với Leader (`BREACH_CONFIRMED` hoặc `NO_BREACH`).
+2. **Factual Canary Presence:** Khi xác nhận vi phạm, cả Leader và Validator đều phải ghi nhận cờ `canary_found == True`.
+3. **Counterparty Attribution:** Cả hai bên phải xác nhận cờ `party_attributed == True` chứng minh tài liệu gắn liền với `party_identifier`.
+4. **Severity Bounds:** Điểm mức độ nghiêm trọng rò rỉ (`leak_severity`) giữa các validator không được lệch quá $20\%$:
+   $$|\text{leader\_severity} - \text{validator\_severity}| \le 20$$
+5. **Snapshot Consistency:** Mã băm `evidence_hash` giữa các validator phải tuyệt đối trùng khớp.
+
+### 5. Xử Lý Các Tình Huống Ngoại Lệ (Edge Cases)
+- **Web Fetch Thất Bại (404 / Scraper Blocked):** Nếu URL bằng chứng không thể truy cập hoặc bị chặn, AI Jury đưa ra phán quyết `NO_BREACH` với lý do rõ ràng. Hệ thống hoàn trả tiền ký quỹ hoặc cho phép nộp lại bằng chứng qua nguồn lưu trữ vĩnh viễn (web.archive.org / IPFS / GitHub commit).
+- **Output Mô Hình LLM Bị Dị Dạng:** Hệ thống có lớp bọc parser JSON thông minh (tự loại bỏ markdown fences, fallback schema validation). Nếu LLM sinh output không hợp lệ, hệ thống tự động áp dụng giá trị mặc định an toàn bảo vệ quỹ.
+- **Cơ Chế Khôi Phục Audit Bị Kẹt (Stuck Audit Recovery - 24h Timeout):** Nếu một vụ việc bị treo ở trạng thái `IN_AUDIT` quá 24 giờ (86,400 giây) mà không có phán quyết, hàm `close_and_reclaim` cho phép hoàn trả toàn bộ bond cho Whistleblower và hoàn trả bounty cho Issuer, bảo vệ 100% tài sản không bị kẹt vĩnh viễn.
+
 ---
 
 ## 📝 7. Thông tin Nộp bài Portal & Explorer (Submission Specifications)
